@@ -1,0 +1,233 @@
+{
+  "$comment": [
+    "Authoritative runtime source for every tuning value in 21 Bastion.",
+    "Mirrors docs/reference/tuning-constants.md, which carries the reasoning and the discrepancy log.",
+    "Every number here is first-pass and expected to be wrong; that is why none of them are in code.",
+    "Design revision: 7.1"
+  ],
+
+  "revision": "7.1",
+
+  "geometry": {
+    "pathLength": 12.0,
+    "socketPositions": [3.0, 6.0, 9.0],
+    "lanes": 2,
+    "junctionSockets": 1,
+    "defaultEntry": 0.0,
+    "defaultRange": 3.0,
+    "faceCardRange": 4.0
+  },
+
+  "march": {
+    "activePreset": "C",
+    "freeCards": 2,
+    "exactly21Pullback": 3.0,
+    "entryClampMin": 0.0,
+    "$comment_entryClampMax": [
+      "The rear socket's own position, so enemies never spawn past the player's last defense.",
+      "Uncapped repetition of the final step puts a 7-card hand past the end of the path: zero",
+      "engagement and a guaranteed full leak, which is an automatic loss for a legal, rare, and",
+      "genuinely impressive hand. Clamped, a 6-card hand keeps 3.0 engagement of 18.0.",
+      "Validated against max(geometry.socketPositions) - if the geometry moves, this must follow."
+    ],
+    "entryClampMax": 9.0
+  },
+
+  "marchPresets": {
+    "A": {
+      "label": "Flat control",
+      "note": "Revision 6's step. Arm A.",
+      "steps": [1.0, 1.0, 1.0],
+      "stepBeyondListed": 1.0
+    },
+    "B": {
+      "label": "Soft escalation",
+      "note": "Arm B. Expected to be the design if Arm C proves binary.",
+      "steps": [1.0, 1.5, 2.0],
+      "stepBeyondListed": 2.0
+    },
+    "C": {
+      "label": "Hard escalation",
+      "note": "Arm C. The curve the design documents specify.",
+      "steps": [1.5, 2.5, 3.5],
+      "stepBeyondListed": 3.5
+    }
+  },
+
+  "formationStrength": {
+    "byTotal": {
+      "21": 1.60,
+      "20": 1.50,
+      "19": 1.40,
+      "18": 1.30,
+      "17": 1.20,
+      "16": 1.15,
+      "15": 1.10,
+      "14": 1.05,
+      "13": 1.00,
+      "12": 0.95
+    },
+    "elevenOrBelow": 0.90,
+    "bust": 0.80,
+    "persisted": 1.00
+  },
+
+  "cardPower": {
+    "$comment": "Sublinear in card value, approximately value^0.7. Key 10 covers all face cards; key 11 is an Ace held high.",
+    "byValue": {
+      "1": 1.0,
+      "2": 1.6,
+      "3": 2.2,
+      "4": 2.6,
+      "5": 3.1,
+      "6": 3.5,
+      "7": 3.9,
+      "8": 4.3,
+      "9": 4.7,
+      "10": 5.0,
+      "11": 5.4
+    }
+  },
+
+  "aceBastion": {
+    "power": 5.0,
+    "countsAsHandCard": false,
+    "sharesHandMultiplier": true
+  },
+
+  "runLinks": {
+    "$comment": [
+      "Consecutive values in adjacent sockets. Direction-agnostic; Queen is wild; Ace matches its current state.",
+      "The 4-run tier (+35%) is absent on purpose, not by oversight: with three sockets per lane, no",
+      "cross-lane adjacency, and the junction excluded, a run of four is geometrically impossible.",
+      "It returns when socket counts grow - which is what makes the Surveyor relic a link tier rather",
+      "than a coverage bump. Validation requires exactly the reachable lengths 2..socketsPerLane, so",
+      "adding a socket will fail the load until this tier is restored."
+    ],
+    "junctionParticipatesInRuns": false,
+    "crossLaneAdjacency": false,
+    "bonusByRunLength": {
+      "2": 0.15,
+      "3": 0.25
+    }
+  },
+
+  "enemies": [
+    {
+      "id": "swarm_unit",
+      "displayName": "Swarm unit",
+      "count": 8,
+      "health": 4.0,
+      "speed": 1.00,
+      "flatArmor": 0.0,
+      "spacingSeconds": 0.45,
+      "leakDamage": 1
+    },
+    {
+      "id": "armored_soldier",
+      "displayName": "Armored soldier",
+      "count": 3,
+      "health": 12.0,
+      "speed": 0.65,
+      "flatArmor": 1.5,
+      "spacingSeconds": 1.50,
+      "leakDamage": 2
+    },
+    {
+      "id": "fast_raider",
+      "displayName": "Fast raider",
+      "count": 5,
+      "health": 5.0,
+      "speed": 1.60,
+      "flatArmor": 0.0,
+      "spacingSeconds": 0.75,
+      "leakDamage": 1
+    },
+    {
+      "id": "siege_engine",
+      "displayName": "Siege engine",
+      "count": 1,
+      "health": 30.0,
+      "speed": 0.40,
+      "flatArmor": 2.0,
+      "spacingSeconds": null,
+      "leakDamage": 5
+    },
+    {
+      "$comment": "Dealer face-card units. Stats are first-pass; the handoff provides qualitative descriptions only.",
+      "id": "skirmisher",
+      "displayName": "Skirmisher",
+      "count": 1,
+      "health": 8.0,
+      "speed": 1.20,
+      "flatArmor": 0.0,
+      "spacingSeconds": null,
+      "leakDamage": 2
+    },
+    {
+      "id": "standard_bearer",
+      "displayName": "Standard bearer",
+      "count": 1,
+      "health": 10.0,
+      "speed": 0.80,
+      "flatArmor": 1.0,
+      "spacingSeconds": null,
+      "leakDamage": 2
+    },
+    {
+      "id": "herald",
+      "displayName": "Herald",
+      "count": 1,
+      "health": 15.0,
+      "speed": 1.00,
+      "flatArmor": 0.0,
+      "spacingSeconds": null,
+      "leakDamage": 3
+    }
+  ],
+
+  "combat": {
+    "armorDamageFloor": 0.25,
+    "halfArmorBypassFraction": 0.5,
+    "waveResolutionSecondsMin": 12.0,
+    "waveResolutionSecondsMax": 20.0
+  },
+
+  "dealerCardUnits": {
+    "2": "swarm_unit",
+    "3": "swarm_unit",
+    "4": "swarm_unit",
+    "5": "fast_raider",
+    "6": "fast_raider",
+    "7": "fast_raider",
+    "8": "armored_soldier",
+    "9": "armored_soldier",
+    "10": "armored_soldier",
+    "J": "skirmisher",
+    "Q": "standard_bearer",
+    "K": "siege_engine",
+    "A": "herald"
+  },
+
+  "rules": {
+    "shoeSize": 26,
+    "copiesPerRank": 2,
+    "reshuffleBelowCards": 8,
+    "dealerStandsOnAll17s": true,
+    "dealerResolvesOnPlayerBust": true,
+    "overloadEqualsBasePower": true,
+    "overloadScalesWithExcess": false,
+    "$comment_overload": [
+      "The busting card is destroyed and never placed, so there is no placement to inherit a lane from.",
+      "Targeting the highest current Visible Threat is deterministic, needs no declaration click during",
+      "the draw, and is unsteerable - the player cannot angle a bust into the lane they wanted."
+    ],
+    "overloadTargetLane": "highest_visible_threat",
+    "overloadTieBreakStake": "bastion",
+    "adjustmentMovesPerWave": 1,
+    "adjustmentAllowsAdjacentSwap": true,
+    "standingOrderChangesConsumeMove": false,
+    "adjustmentWindowOnBust": false,
+    "openHeldThresholdFraction": 0.5
+  }
+}

@@ -1,0 +1,180 @@
+# Architecture
+
+**Status: partly built.** The handoff specifies game design, not code structure; everything here is
+inferred from design constraints rather than stated by them. Revise freely — but the four hard
+requirements below come directly from the design and are not negotiable without changing the design.
+
+Milestone 0 has landed requirements **3** and **4** (engine-free headless core, tuning as data) and the
+`core/Config` and `core/Diagnostics` layers. Requirements **1** and **2** land with the resolver in
+Milestone 1.
+
+---
+
+## Four hard requirements
+
+### 1. One simulation path
+
+> **The Final Forecast is a contract. If it says a lane leaks two, the wave leaks two.**
+
+There must be **exactly one resolver**. Forecasts are resolver runs. The visible wave is a *presentation*
+of a resolver run — replaying a recorded timeline, not re-simulating.
+
+The failure mode this prevents is well known and hard to reverse: a fast "estimate" path and an accurate
+"real" path that drift apart under maintenance until the forecast quietly becomes a lie. Since the design
+sells the forecast as exact, that drift is not a bug to fix later; it invalidates the game.
+
+**Practical shape:** the resolver consumes an immutable board state and returns a timeline of events plus
+per-lane outcomes. The forecast reads the outcomes. Combat playback animates the timeline.
+
+### 2. Two forecast types, distinguished by the type system
+
+The resolver answers **two different questions** and they must not share a type:
+
+| | **Visible Threat** | **Final Forecast** |
+|---|---|---|
+| When | During the draw | After Dealer resolution |
+| Input | Base wave + Vanguard — revealed force only | The complete army |
+| Claim | Exact about what is on the field now | Exact about the wave that will run |
+| Combat contract? | **No** | **Yes** |
+
+> **Separate return types, not the same type with a flag. A Visible Threat must not be renderable in a slot
+> expecting a Final Forecast.**
+
+This is a type-system requirement rather than a convention because the failure is silent and expensive: a
+number that keeps its name while changing its meaning mid-hand is the cheapest possible way to lose trust
+in the forecast, which is a foundational claim of the design. Revision 7 described one contract and then
+demonstrated it changing mid-example.
+
+The resolver core is shared; only the input army and the wrapper type differ. Both are independently
+verified in regression (`prototype/VALIDATION.md` step 4).
+
+### 3. Headless, deterministic core
+
+The regression procedures in `prototype/VALIDATION.md` require enumerating every legal 2–5 card hand and
+simulating 10,000 hands across three shoe configurations. That must run **without a Godot window, without
+the scene tree, and fast.**
+
+So the game logic — cards, hands, formation, march, sockets, links, resolver, enemies — is a **plain
+library with no engine dependencies.** Godot supplies rendering, input, and scene management, and calls
+into it.
+
+Determinism requirements:
+
+- No wall-clock time, no frame-rate coupling in the simulation. Fixed simulation ticks.
+- No unseeded randomness. The shoe takes an explicit seed; the scripted battery depends on it.
+- Ties resolve by spawn order, explicitly, everywhere.
+- Same input → byte-identical output, every run.
+
+### 4. Tuning values as data
+
+Every number in `reference/tuning-constants.md` is loaded from data. **No inlined literals at call sites.**
+
+Two specific drivers, both immediate rather than hypothetical:
+
+- **Arms A, B, and C** differ only in the march curve. All three **ship as presets in one config file in
+  the first build** — they are not three builds, and switching between them must not require
+  recompilation.
+- The march step sizes are the design's most-likely-wrong numbers and are explicitly required to be
+  config-tunable on the first build.
+
+The House Rules mode (`design/10-run-structure.md`) is a third driver arriving later: every entry in that
+menu toggles a rule the prototype hardcodes. Expressing those as rule flags from the start makes both House
+Rules and the test arms nearly free.
+
+---
+
+## Proposed layout
+
+Built (✅) and planned:
+
+```
+21 Bastion.sln
+Directory.Build.props    ✅ shared TFM, roll-forward, the BastionInstrumentation gate
+data/tuning.json         ✅ every tuning value, all three march presets
+21 Bastion.csproj        ✅ Godot layer, assembly "21 Bastion", namespace Bastion.Game
+  scenes/                ✅ root.tscn (main scene) - board, panels, combat playback
+  game/                  ✅ Bootstrap.cs - the composition root
+    presentation/           timeline playback, animation
+    input/                  placement, family selection, adjustment window
+  telemetry/             ✅ (empty) instrumentation logging
+core/Bastion.Core.csproj ✅ engine-free game logic; guarded against GodotSharp
+  Config/                ✅ TuningData, TuningLoader, TuningValidationException
+  Diagnostics/           ✅ DebugGate
+  Cards/                    rank, value, power curve, ace states, shoe
+  Hand/                     blackjack state, totals, formation strength
+  Board/                    lanes, sockets, towers, placement, run links
+  March/                    entry point, escalating step, engagement
+  Dealer/                   draw policy, card→unit mapping
+  Resolve/                  the resolver: enemies, targeting, timeline, outcomes
+tests/                   ✅ Config/, Diagnostics/, March/
+docs/
+```
+
+The `core` ↔ `game` boundary is the load-bearing one. If a `core` type imports a Godot type, requirement 3
+is broken — so `Bastion.Core.csproj` carries a `GuardEngineFreeCore` target that fails the build on a
+GodotSharp reference. Verified to fire.
+
+Note the root project globs `**/*.cs` from the repository root, so `core/` and `tests/` are explicitly
+`Compile Remove`d from it or they would compile twice.
+
+---
+
+## Notes on specific systems
+
+**Composition root.** `Bootstrap` loads tuning once and passes it down. Resist making it an Autoload
+singleton: global reachability is a service locator, and depending on one from inside game systems is
+what would quietly break requirement 3 by making those systems unrunnable without the scene tree.
+
+**Phase state machine.** `design/01-core-loop.md` is a small explicit state machine with a hard boundary
+between the draw phase and the adjustment window. Model it as such — the boundary is a design invariant,
+not an implementation detail, and blurring it is exactly what the Commitments Are Made Under Uncertainty
+pillar guards against.
+
+**Family locking.** Enforce it in `core`, not in the UI. A rule this central should be impossible to
+violate through a code path, not merely un-clickable.
+
+**Engagement.** A pure function of entry, socket positions, ranges, and path length. It has closed-form
+tables in the design to test against — write those tests first; they caught a real error in Revision 7 (see
+`reference/tuning-constants.md` § Resolved).
+
+**Do not build an "effective output" helper** that multiplies power by an engagement fraction. That
+estimate is withdrawn: sockets are not interchangeable, and a convenience function computing it will get
+used for balance decisions no matter what the comment says. Engagement is reported **per socket**, for
+explanation and instrumentation. Balance comes from resolver output.
+
+**Adjustment window.** One move for the whole board, enforced in `core`. The single-move rule exists partly
+because per-tower movement left five specification questions unanswered (`design/05-battlefield.md`) — a
+model where "moves remaining" is a board-level counter answers all five by construction. Standing-order
+changes do not consume the move.
+
+**Standing orders.** Modeled exactly by the resolver, or they do not ship. There is no "approximately
+forecast" tier.
+
+**Debug-only values.** Bust probability, expected outputs, and combined utility exist for instrumentation
+and must never reach a player build. Gated by `core/Diagnostics/DebugGate.cs`: `OracleOnly` skips the
+computation entirely rather than discarding its result, and `RequireInstrumented` guards a whole routine.
+
+Two design points worth not undoing:
+
+- The gate is **compile-time**, so the values are absent from a player binary rather than merely
+  unreachable.
+- It is **not** tied to the Debug configuration, because a Godot *debug export* is still a player build.
+  Enabling it requires `-p:BastionInstrumentation=true` as a command-line global property — a project
+  cannot set it on another project's behalf, since the gate compiles into `Bastion.Core`.
+
+---
+
+## Testing strategy
+
+| Layer | What it covers |
+|---|---|
+| **Unit** | Power curve, formation strength, engagement, run detection, ace states, armor floor |
+| **Benchmark** | The output landmarks table in `design/02-blackjack-and-formation.md`, reproduced exactly |
+| **Equivalence** | Final Forecast outcomes == playback outcomes, **and** Visible Threat == a resolver run against the revealed force alone — on every scripted fixture |
+| **Enumeration** | All legal 2–5 card hands: **raw** output and entry position — never a derived engagement-adjusted output |
+| **Statistical** | 10,000 hands × 3 shoe configs: output, bust rate, board width, run frequency, entry |
+| **Acceptance** | `design/example-wave.md`, replayed end to end |
+
+The enumeration and statistical suites are the regression gate: per `prototype/VALIDATION.md`, they run
+**before** any change to the march curve, Formation Strength, run percentages, tower power, Overload, or
+the resolver.

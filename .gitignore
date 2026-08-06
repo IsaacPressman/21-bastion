@@ -1,0 +1,27 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Godot C# / Mono
+.mono/
+mono_crash.*.json
+data_*/
+
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+*.user
+*.userprefs
+*.suo
+
+# IDE
+.vs/
+.idea/
+*.sln.DotSettings.user
+*.csproj.user
+
+# Local tuning overrides - never commit a machine-specific curve
+data/*.local.json

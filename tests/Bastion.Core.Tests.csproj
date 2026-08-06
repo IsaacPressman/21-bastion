@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BastionTargetFramework)</TargetFramework>
+    <RootNamespace>Bastion.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!--
+      Deliberately does NOT set BastionInstrumentation. The oracle gate compiles into
+      Bastion.Core, so only a command-line global property reaches it:
+          dotnet test -p:BastionInstrumentation=true
+      Setting it here would flip the symbol for this project alone and quietly do nothing.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../core/Bastion.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

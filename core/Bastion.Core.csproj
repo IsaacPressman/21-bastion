@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(BastionTargetFramework)</TargetFramework>
+    <RootNamespace>Bastion.Core</RootNamespace>
+    <AssemblyName>Bastion.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    ARCHITECTURE.md requirement 3: the core must be runnable headless, without the Godot scene
+    tree, so the regression suites (all legal 2-5 card hands; 10,000 hands x 3 shoes) can run
+    fast and without a window.
+
+    A Godot reference here would break that silently, and would only be noticed once a test run
+    started needing an engine. Fail the build instead.
+  -->
+  <Target Name="GuardEngineFreeCore" AfterTargets="ResolveReferences">
+    <Error Condition="'%(ReferencePath.Filename)' == 'GodotSharp' Or '%(ReferencePath.Filename)' == 'GodotSharpEditor'"
+           Text="Bastion.Core must remain engine-free: it may not reference %(ReferencePath.Filename). Godot-dependent code belongs in the game/ layer of the root project. See docs/ARCHITECTURE.md." />
+  </Target>
+
+</Project>

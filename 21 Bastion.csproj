@@ -1,0 +1,29 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+
+  <PropertyGroup>
+    <TargetFramework>$(BastionTargetFramework)</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+
+    <AssemblyName>21 Bastion</AssemblyName>
+    <!--
+      RootNamespace must be set explicitly. It would otherwise be derived from AssemblyName,
+      and "21 Bastion" is not a valid C# namespace (leading digit, embedded space).
+    -->
+    <RootNamespace>Bastion.Game</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Godot.NET.Sdk globs **/*.cs from the project root. The core library and the test project
+    live under this root but are separate assemblies, so they must be excluded or they would be
+    compiled twice - once here, once in their own project.
+  -->
+  <ItemGroup>
+    <Compile Remove="core/**" />
+    <Compile Remove="tests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="core/Bastion.Core.csproj" />
+  </ItemGroup>
+
+</Project>

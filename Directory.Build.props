@@ -1,0 +1,50 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Godot 4.7 ships GodotSharp targeting net8.0. Every project in this solution must match,
+      including the engine-free ones, or the Godot layer cannot reference them.
+      Verify against the GodotSharp package lib/ folder before changing.
+    -->
+    <BastionTargetFramework>net8.0</BastionTargetFramework>
+
+    <!--
+      Compile against net8.0 (Godot's constraint) but run on whatever major runtime is present.
+      This machine has the .NET 7 and .NET 10 runtimes but not .NET 8, so without this the test
+      host cannot start. Installing the .NET 8 runtime is the alternative; roll-forward is kept
+      because it also lets the suite run on CI images that ship only the current LTS.
+    -->
+    <RollForward>Major</RollForward>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    Oracle-tier diagnostics gate. See docs/design/09-information-and-ui.md.
+
+    Exact bust probability, stand/hit expected output, and combined utility exist for
+    instrumentation and MUST NEVER reach a player-facing build. They are therefore compiled
+    out unless explicitly opted in:
+
+        dotnet build -p:BastionInstrumentation=true
+
+    Note this is deliberately NOT tied to the Debug configuration: a Godot *debug export* is
+    still a player build. Off by default means a player build is the safe default and enabling
+    the oracle is a conscious act.
+
+    This is the oracle tier only. Ordinary playtest telemetry (choices, timings, forecasts)
+    is always available and is not gated here.
+  -->
+  <PropertyGroup>
+    <BastionInstrumentation Condition="'$(BastionInstrumentation)' == ''">false</BastionInstrumentation>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BastionInstrumentation)' == 'true'">
+    <DefineConstants>$(DefineConstants);BASTION_DEBUG</DefineConstants>
+  </PropertyGroup>
+
+</Project>
