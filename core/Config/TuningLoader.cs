@@ -337,6 +337,21 @@ public static class TuningLoader
             {
                 errors.Add($"enemies.{enemy.Id}.count must be positive; it is the Dealer pack size.");
             }
+
+            // Aura (Standard bearer). Invented for the resolver; a zero radius or a sub-1 multiplier
+            // would be a buff that does nothing or a secret slow, neither of which is what it is for.
+            if (enemy.Aura is { } aura)
+            {
+                if (aura.Radius <= 0)
+                {
+                    errors.Add($"enemies.{enemy.Id}.aura.radius ({aura.Radius}) must be positive, or the aura buffs nothing.");
+                }
+
+                if (aura.SpeedMultiplier <= 0)
+                {
+                    errors.Add($"enemies.{enemy.Id}.aura.speedMultiplier ({aura.SpeedMultiplier}) must be positive.");
+                }
+            }
         }
 
         // Towers. The junction position is derived from geometry the same way the entry clamp is:

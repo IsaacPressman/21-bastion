@@ -348,6 +348,34 @@ Six, not the roster's five — the document states lane two forecasts **6 damage
 leak 1 each. **Encounter groups carry explicit counts that override the roster; the roster `count` is the
 Dealer pack size.** Lane one's three armored soldiers leak 2 each, also 6.
 
+### Milestone 3: bust, Overload, and Dealer face-card units
+
+The handoff describes each of these qualitatively and gives no numbers or application shape. All are
+first-pass; a disagreement is a decision to revisit, not a bug.
+
+- **Overload application shape.** The design fixes the *magnitude* (the busting card's base power, from
+  the card-power curve — no new tuning key) and the *target* (the highest current Visible Threat lane, ties
+  to Bastion), but leaves "one enemy, all enemies, splash?" open. First pass: an **instantaneous burst at
+  the opening tick, before any tower fires**, spending the base power on the units present in the struck lane
+  in spawn order, spilling a kill's remainder onto the next. It **ignores armor** — it is raw card power, not
+  a tower shot — and its victims are removed as an `OverloadEvent` rather than through the normal death phase,
+  so they carry no killing socket. Because only the units present at the opening tick are hit, its reach
+  depends on the spawn schedule. Modelled in `core/Resolve/Resolver.cs`; passed only on a bust.
+- **Overload target is read pre-bust.** The lane is computed from the Visible Threat **as shown before the
+  hit** — the "Bust → Overload: Lane X" the hand panel carries — i.e. against the board as it stands at the
+  decision (placed towers at the pre-hit multiplier and entry), not against the busted ×0.80 board. See
+  `core/Wave/WaveSession.cs`.
+- **Standard bearer aura** (`enemies.standard_bearer.aura`): `radius 2.0`, `speedMultiplier 1.5`. The handoff
+  says only "buffs nearby enemies". Modelled as a **speed** buff applied to other live units within radius in
+  the **same lane** (never across lanes, so it does not couple the lane simulations), strongest aura wins, no
+  self-buff, composing on top of any Spade slow. Applied in the resolver's move phase.
+- **Herald split** (`herald` / `herald_scout`): the Ace is "an elite at 11, a fragile scout at 1". The elite
+  row is `herald` (the original); the scout is a second invented row `herald_scout` (fragile, fast). A Dealer
+  Ace held low deploys the scout via the `dealerCardUnits.A_low` key, chosen on `Card.AceHigh` in
+  `DealerDeployment`. Scout stats (health 4.0, speed 1.6, leak 1) are invented.
+- **Still deferred past Milestone 3:** Jack mobility and the Skirmisher's junction lane-change — both need
+  mutable runtime position / lane coupling and are left stubbed in `core/Resolve/UnmodelledBehaviour.cs`.
+
 ### Resolver rules that are choices, not data
 
 Two more decisions have no tuning key because they are structural:

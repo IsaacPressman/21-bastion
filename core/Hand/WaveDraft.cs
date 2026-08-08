@@ -12,7 +12,12 @@ namespace Bastion.Core.Hand;
 /// Stores the <see cref="Rank"/>, not a <see cref="Card"/>: an Ace's 1-or-11 state is derived from
 /// the hand at board-build time, so the hand stays the single source of truth for it.
 /// </remarks>
-public readonly record struct Placement(Rank Rank, Family Family, SocketRef Socket);
+/// <remarks>
+/// Carries the tower's <see cref="StandingOrder"/> so the adjustment window can set one without a
+/// separate board type: orders are set here, and <see cref="WaveDraft.BuildBoard"/> folds them into
+/// the towers it produces. Null means the default nearest-target rule.
+/// </remarks>
+public readonly record struct Placement(Rank Rank, Family Family, SocketRef Socket, StandingOrder? Order = null);
 
 /// <summary>
 /// A hand being drawn and placed - the producer that turns cards into the board the resolver runs.
@@ -78,6 +83,72 @@ public sealed class WaveDraft
         return new WaveDraft(hand, placed);
     }
 
+    /// <summary>
+    /// Moves the tower at <paramref name="from"/> to the empty socket <paramref name="to"/>, keeping
+    /// its rank, family, and order. The adjustment window's relocate half.
+    /// </summary>
+    /// <remarks>
+    /// Family never changes here - only position - so family locking is preserved by construction.
+    /// The move re-derives the whole board through <see cref="BuildBoard"/>, so a relocation that
+    /// forms or breaks a run is reflected in the run bonuses, not patched onto a fixed board. Socket
+    /// adjacency (one socket, or a swap of two adjacent towers) is the caller's rule to enforce; this
+    /// only refuses a move to an occupied socket or from an empty one.
+    /// </remarks>
+    public WaveDraft WithTowerMoved(SocketRef from, SocketRef to)
+    {
+        if (_placements.All(p => p.Socket != from))
+        {
+            throw new InvalidOperationException($"There is no tower at {from} to relocate.");
+        }
+
+        if (_placements.Any(p => p.Socket == to))
+        {
+            throw new InvalidOperationException($"Socket {to} is occupied; a relocation needs an empty socket.");
+        }
+
+        List<Placement> moved = [.. _placements.Select(p => p.Socket == from ? p with { Socket = to } : p)];
+        return new WaveDraft(Hand, moved);
+    }
+
+    /// <summary>
+    /// Swaps the positions of the two towers at <paramref name="a"/> and <paramref name="b"/>. The
+    /// adjustment window's swap half.
+    /// </summary>
+    public WaveDraft WithTowersSwapped(SocketRef a, SocketRef b)
+    {
+        if (_placements.All(p => p.Socket != a) || _placements.All(p => p.Socket != b))
+        {
+            throw new InvalidOperationException($"A swap needs a tower at both {a} and {b}.");
+        }
+
+        List<Placement> swapped =
+        [
+            .. _placements.Select(p =>
+                p.Socket == a ? p with { Socket = b }
+                : p.Socket == b ? p with { Socket = a }
+                : p),
+        ];
+
+        return new WaveDraft(Hand, swapped);
+    }
+
+    /// <summary>
+    /// Sets the standing order on the tower at <paramref name="socket"/>. Free in the adjustment
+    /// window - it does not consume the single move.
+    /// </summary>
+    public WaveDraft WithOrder(SocketRef socket, StandingOrder order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        if (_placements.All(p => p.Socket != socket))
+        {
+            throw new InvalidOperationException($"There is no tower at {socket} to give an order.");
+        }
+
+        List<Placement> ordered = [.. _placements.Select(p => p.Socket == socket ? p with { Order = order } : p)];
+        return new WaveDraft(Hand, ordered);
+    }
+
     /// <summary>The entry point this hand's length and total put the army at.</summary>
     public double Entry(TuningData tuning)
     {
@@ -113,7 +184,8 @@ public sealed class WaveDraft
                 r.Placement.Family,
                 r.Placement.Socket,
                 multiplier,
-                runBonus.GetValueOrDefault(r.Placement.Socket, 0.0))),
+                runBonus.GetValueOrDefault(r.Placement.Socket, 0.0),
+                r.Placement.Order)),
         ];
 
         if (Hand.IsNaturalBlackjack)

@@ -73,6 +73,23 @@ public sealed record DeathEvent : TimelineEvent
     public required SocketRef KilledBy { get; init; }
 }
 
+/// <summary>
+/// A bust's Overload struck this lane. Emitted once, at the opening tick, before towers fire.
+/// </summary>
+/// <remarks>
+/// The units it killed are removed here rather than through the normal death phase, so they carry no
+/// <see cref="DeathEvent.KilledBy"/> socket - nothing shot them. This event is the explanation
+/// instead.
+/// </remarks>
+public sealed record OverloadEvent : TimelineEvent
+{
+    /// <summary>The busting card's base power, spent on this lane.</summary>
+    public required double Damage { get; init; }
+
+    /// <summary>Units the burst destroyed, in spawn order.</summary>
+    public required IReadOnlyList<int> KilledSpawnIndices { get; init; }
+}
+
 /// <summary>A unit reached the end of the path.</summary>
 public sealed record LeakEvent : TimelineEvent
 {

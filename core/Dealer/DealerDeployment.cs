@@ -80,17 +80,28 @@ public static class DealerDeployment
     /// <summary>The enemy type a card's rank produces.</summary>
     /// <remarks>
     /// Keyed on printed rank, not blackjack value: a Jack is a Skirmisher and a King is a siege
-    /// engine, though both count as ten in the Dealer's hand.
+    /// engine, though both count as ten in the Dealer's hand. The one exception is the Ace's Herald
+    /// split - an Ace held low (a fragile scout at 1) deploys a different unit than one held high (an
+    /// elite at 11), so a low Ace is looked up under the <c>A_low</c> key. If a tuning omits that key
+    /// the high-Ace unit stands in, so the split is opt-in per data (docs/design/06-dealer-and-enemies.md).
     /// </remarks>
     public static string UnitFor(TuningData tuning, Card card)
     {
         ArgumentNullException.ThrowIfNull(tuning);
 
-        string key = card.Rank.TuningKey();
+        string key = card.Rank == Rank.Ace && !card.AceHigh ? "A_low" : card.Rank.TuningKey();
 
-        return tuning.DealerCardUnits.TryGetValue(key, out string? enemyId)
-            ? enemyId
-            : throw new TuningValidationException($"dealerCardUnits has no entry for rank '{key}'.");
+        if (tuning.DealerCardUnits.TryGetValue(key, out string? enemyId))
+        {
+            return enemyId;
+        }
+
+        if (key == "A_low" && tuning.DealerCardUnits.TryGetValue("A", out string? fallback))
+        {
+            return fallback;
+        }
+
+        throw new TuningValidationException($"dealerCardUnits has no entry for rank '{key}'.");
     }
 
     private static int LaneFor(TuningData tuning, EncounterTuning encounter, int cardIndex) =>

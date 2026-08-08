@@ -4,6 +4,7 @@ using Bastion.Core.Config;
 using Bastion.Core.Diagnostics;
 using Bastion.Core.March;
 using Bastion.Core.Resolve;
+using Bastion.Core.Wave;
 using Godot;
 
 namespace Bastion.Game;
@@ -54,6 +55,7 @@ public partial class Bootstrap : Node
                  $"  (clamped at {_tuning.March.EntryClampMax:F1})");
 
         ReportForecast(_tuning);
+        ReportWaveLoop(_tuning);
 
         // Copied to a local so the branch is not folded away as unreachable at compile time.
         bool instrumented = DebugGate.IsEnabled;
@@ -122,5 +124,40 @@ public partial class Bootstrap : Node
         GD.Print($"[21 Bastion] Wave resolves in {forecast.Timeline.DurationSeconds:F1}s " +
                  $"over {forecast.Timeline.Events.Count} events " +
                  $"(target {tuning.Combat.WaveResolutionSecondsMin:F0}-{tuning.Combat.WaveResolutionSecondsMax:F0}s)");
+    }
+
+    /// <summary>
+    /// Drives a short wave through the Milestone 3 state machine and prints its phases.
+    /// </summary>
+    /// <remarks>
+    /// Still a smoke test, not gameplay: it proves the Godot layer reaches the engine-free
+    /// <see cref="WaveSession"/> and can walk it from the opening deal to a locked, forecast wave. The
+    /// cards come from a seeded shoe, so the printed hand varies with the seed; only the placement
+    /// sockets are scripted.
+    /// </remarks>
+    private static void ReportWaveLoop(TuningData tuning)
+    {
+        EncounterTuning encounter = tuning.Encounter("example_wave");
+
+        WaveSession session = WaveSession.Begin(tuning, encounter, Shoe.Create(tuning, seed: 20240808))
+            .Place(Family.Club, SocketRef.InLane(0, 1))
+            .Place(Family.Club, SocketRef.InLane(0, 2));
+
+        GD.Print($"[21 Bastion] Wave loop: Vanguard {session.Vanguard}, opening hand {session.Hand.Total} " +
+                 $"(×{session.FormationMultiplier:F2}), phase {session.Phase}");
+
+        // The Visible Threat during the draw - the revealed force only, never a wave prediction.
+        double threshold = tuning.Rules.OpenHeldThresholdFraction;
+        LaneOutcome vaultThreat = session.VisibleThreatNow().Lanes[1];
+        GD.Print($"[21 Bastion]   Visible Threat, Vault lane: {vaultThreat.CoverageLabel(threshold)}, {vaultThreat.PredictedDamage}");
+
+        WaveSession locked = session.Stand().Lock();
+        GD.Print($"[21 Bastion]   Stood; Dealer deployed {locked.DealerCards!.Count} cards; phase {locked.Phase}");
+
+        foreach (LaneOutcome lane in locked.Forecast().Lanes)
+        {
+            GD.Print($"[21 Bastion]   Final Forecast, lane {lane.LaneIndex} ({lane.Stake}): " +
+                     $"{lane.CoverageLabel(threshold)}, {lane.PredictedDamage} of {lane.EmptyLaneDamage}");
+        }
     }
 }

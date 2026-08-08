@@ -56,11 +56,12 @@ public static class Resolver
         TuningData tuning,
         EncounterTuning encounter,
         BoardState board,
-        CompleteArmy army)
+        CompleteArmy army,
+        OverloadStrike? overload = null)
     {
         ArgumentNullException.ThrowIfNull(army);
 
-        WaveResolution resolution = Run(tuning, encounter, board, army.Spawns);
+        WaveResolution resolution = Run(tuning, encounter, board, army.Spawns, overload);
 
         return new FinalForecast
         {
@@ -81,7 +82,8 @@ public static class Resolver
         TuningData tuning,
         EncounterTuning encounter,
         BoardState board,
-        IReadOnlyList<EnemySpawn> spawns)
+        IReadOnlyList<EnemySpawn> spawns,
+        OverloadStrike? overload = null)
     {
         ArgumentNullException.ThrowIfNull(tuning);
         ArgumentNullException.ThrowIfNull(encounter);
@@ -114,12 +116,17 @@ public static class Resolver
 
             IReadOnlyList<TowerState> towers = board.TowersFiringInto(lane);
 
-            LaneRun live = SimulateLane(tuning, lane, towers, laneSpawns);
+            // The Overload burst, if this bust struck this lane. It goes into both the live run and
+            // the empty-lane baseline: it is not a tower, so "damage prevented" must keep measuring
+            // only what the towers did, not what the burst did.
+            double burst = overload is { } strike && strike.LaneIndex == lane ? strike.Damage : 0.0;
+
+            LaneRun live = SimulateLane(tuning, lane, towers, laneSpawns, burst);
 
             // The empty-lane baseline: the same army, this lane's towers removed, the other lane
             // untouched. Running it rather than summing leak damage keeps "damage prevented"
             // meaningful if a lane ever grows a hazard that is not a tower.
-            LaneRun bare = SimulateLane(tuning, lane, [], laneSpawns);
+            LaneRun bare = SimulateLane(tuning, lane, [], laneSpawns, burst);
 
             lanes.Add(new LaneOutcome
             {
@@ -166,12 +173,14 @@ public static class Resolver
         TuningData tuning,
         int lane,
         IReadOnlyList<TowerState> towers,
-        IReadOnlyList<EnemySpawn> spawns)
+        IReadOnlyList<EnemySpawn> spawns,
+        double openingBurst = 0.0)
     {
         double dt = tuning.Sim.TickSeconds;
         double pathLength = tuning.Geometry.PathLength;
         int cooldownTicks = tuning.Sim.TicksIn(tuning.Towers.CooldownSeconds);
         bool undefended = towers.Count == 0;
+        bool overloadSpent = openingBurst <= 0.0;
 
         List<TowerRuntime> guns = [.. towers.Select(t => new TowerRuntime(t, t.PositionOn(tuning), t.ShotDamageInLane(tuning)))];
         List<(int Tick, EnemySpawn Spawn)> schedule =
@@ -231,6 +240,49 @@ public static class Resolver
                 cursor++;
             }
 
+            // Phase 1.5 - Overload, once, at the opening tick and before any tower fires. An
+            // instantaneous strike at this lane on a bust, spending the busting card's base power on
+            // the units present in spawn order, spilling a kill's remainder onto the next. It ignores
+            // armor - it is raw card power, not a tower shot - and its victims are removed here, so
+            // they are attributed to the burst rather than to a tower. NOT SPECIFIED BY THE DESIGN
+            // how the burst distributes; see docs/reference/tuning-constants.md.
+            if (!overloadSpent)
+            {
+                overloadSpent = true;
+                double remaining = openingBurst;
+                List<int> killed = [];
+
+                foreach (LiveEnemy enemy in active.OrderBy(e => e.SpawnIndex))
+                {
+                    if (remaining <= 0.0)
+                    {
+                        break;
+                    }
+
+                    double dealt = Math.Min(remaining, enemy.Health);
+                    enemy.Health -= dealt;
+                    remaining -= dealt;
+
+                    if (enemy.Health <= 0)
+                    {
+                        enemy.Alive = false;
+                        killed.Add(enemy.SpawnIndex);
+                    }
+                }
+
+                events.Add(new OverloadEvent
+                {
+                    Tick = tick,
+                    Time = time,
+                    LaneIndex = lane,
+                    Damage = openingBurst,
+                    KilledSpawnIndices = killed,
+                });
+
+                active.RemoveAll(e => !e.Alive);
+                lastEventTime = time;
+            }
+
             // Phase 2 - towers fire, in socket order, damage applied immediately.
             foreach (TowerRuntime gun in guns)
             {
@@ -277,10 +329,12 @@ public static class Resolver
                 active.RemoveAll(e => !e.Alive);
             }
 
-            // Phase 4 - move survivors.
+            // Phase 4 - move survivors. A Standard bearer's aura hastens nearby same-lane units;
+            // it composes on top of any Spade slow rather than replacing it.
             foreach (LiveEnemy enemy in active)
             {
-                enemy.Position += enemy.SpeedAt(time, tuning.Suits.Spades.SlowMultiplier) * dt;
+                double speed = enemy.SpeedAt(time, tuning.Suits.Spades.SlowMultiplier);
+                enemy.Position += speed * AuraFactor(enemy, active) * dt;
             }
 
             // Phase 5 - leak check, in spawn order.
@@ -438,6 +492,35 @@ public static class Resolver
         });
 
         return applied;
+    }
+
+    /// <summary>
+    /// The speed multiplier a unit gets from nearby aura carriers in its lane, or 1.0 if none.
+    /// </summary>
+    /// <remarks>
+    /// Only the Standard bearer carries an aura, and only within its own lane - enemies never leave
+    /// their lane, so this reads nothing outside it and does not couple the two lane simulations.
+    /// Multiple carriers do not compound: the strongest aura wins, matching the Spade slow's
+    /// refresh-not-stack rule. A unit does not buff itself. NOT SPECIFIED BY THE DESIGN.
+    /// </remarks>
+    private static double AuraFactor(LiveEnemy enemy, IReadOnlyList<LiveEnemy> active)
+    {
+        double factor = 1.0;
+
+        foreach (LiveEnemy carrier in active)
+        {
+            if (!carrier.Alive
+                || ReferenceEquals(carrier, enemy)
+                || carrier.Type.Aura is not { } aura
+                || Math.Abs(carrier.Position - enemy.Position) > aura.Radius)
+            {
+                continue;
+            }
+
+            factor = Math.Max(factor, aura.SpeedMultiplier);
+        }
+
+        return factor;
     }
 
     /// <summary>

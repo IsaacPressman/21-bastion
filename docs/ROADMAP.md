@@ -1,10 +1,12 @@
 # Roadmap
 
-**Status: Milestone 2 complete.** The hand, shoe, placement, family locking, run links, forced replacement,
-and formation multiplier all run headless and write the board the resolver already consumed; the output
-landmarks reproduce exactly. Milestone 3 (wave loop) is next. **Open Decision 2 was re-measured with run
-links modelled (caveat 1 below) and the deep-placement margin held — the socket-geometry remedy is still
-owed before march tuning.**
+**Status: Milestone 3 complete.** The wave loop runs headless: the phase state machine, the Dealer's
+draw-to-17, bust with the Overload strike, the one-move adjustment window, lane stakes, and persistence
+with ×1.00 reversion — all driving the Milestone 1 resolver and Milestone 2 producer unchanged in shape.
+`design/example-wave.md` replays end to end (`tests/Wave/`). Milestone 4 (presentation) is next.
+**Open Decision 2 was re-measured with run links modelled (caveat 1 below) and the deep-placement margin
+held — the socket-geometry remedy is still owed before march tuning, and Milestone 3 deliberately did not
+touch socket geometry.**
 
 This roadmap sequences the prototype defined in `prototype/SCOPE.md`. It is derived from the design, not
 stated by it; the handoff specifies *what* to build, not *in what order*.
@@ -201,17 +203,34 @@ and Jack mobility (a resolver-time behaviour, still stubbed in `Resolve/Unmodell
 Ace Bastion's socket and family are first-pass choices flagged in `reference/tuning-constants.md`
 § Ace Bastion placement, to revisit in Milestone 3.
 
-### Milestone 3 — Wave loop
+### Milestone 3 — Wave loop ✅
 
-- Full phase state machine from `design/01-core-loop.md`
-- Dealer: upcard deployed as Vanguard pre-deal, hidden card, draws to 17, every card deploys
-- Bust: card destroyed, ×0.80, Overload at base power, no adjustment window, Dealer resolves in full
-- Adjustment window: **one move total** (relocate one socket or swap two adjacent), standing orders free,
-  families locked
-- Lane stakes: Bastion and Vault
-- Persistence with ×1.00 reversion at wave boundary
+The orchestration layer. Milestones 1 and 2 built every consumer and producer; Milestone 3 drives them
+through the phases of a wave and enforces the phase boundaries. **The resolver's shape was unchanged** —
+the two additions (an optional Overload burst, the Standard-bearer aura) are rules inside phases that
+already existed, not a new lane loop.
 
-**Done when:** `design/example-wave.md` replays end to end and every number in it matches.
+- ✅ Full phase state machine from `design/01-core-loop.md` — immutable `core/Wave/WaveSession.cs`
+  (`WavePhase`: AwaitingPlacement → DrawDecision → AdjustmentWindow → Locked, plus a terminal BustLocked)
+- ✅ Dealer: upcard deployed as Vanguard pre-deal, hidden card, **draws to 17** (`core/Dealer/DealerHand.cs`,
+  stands on all 17s), every card deploys
+- ✅ Bust: card destroyed, ×0.80, **Overload at base power** struck at the highest current Visible Threat
+  lane (read pre-hit, unsteerable), no adjustment window, Dealer resolves in full
+- ✅ Adjustment window: **one move total** (relocate one socket or swap two adjacent), standing orders free,
+  families locked — producers on `core/Hand/WaveDraft.cs`, enforced by `WaveSession`
+- ✅ Lane stakes: Bastion and Vault, surfaced per lane and used in the Overload tie-break
+- ✅ Persistence with ×1.00 reversion at the wave boundary (`WaveSession.Settle`)
+- ✅ **Standard-bearer buff and Herald 1/11 split** modelled (the two localized Dealer face-card behaviours);
+  **Jack mobility and the Skirmisher lane-change remain deferred** — both need mutable runtime position /
+  lane coupling, still stubbed in `Resolve/UnmodelledBehaviour.cs`
+
+**Done when:** `design/example-wave.md` replays end to end and every number in it matches. **Met** —
+`tests/Wave/ExampleWaveReplayTests.cs`, honoring the doc's own discrepancy carve-outs (integer-governed
+leakage, pile count 21, the 14 s timing not asserted). The invented pieces (Overload application shape, the
+Standard-bearer aura, the `herald_scout` row) are flagged in `reference/tuning-constants.md` § Invented.
+
+**Still owed before Milestone 5 march tuning:** the socket-geometry remedy for Open Decision 2. Milestone 3
+left socket geometry untouched by design.
 
 ### Milestone 4 — Presentation and information
 

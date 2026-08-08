@@ -176,7 +176,7 @@ public sealed class TuningDataTests
     public void Enemy_roster_covers_all_dealer_card_units()
     {
         string[] expected = [
-            "armored_soldier", "fast_raider", "herald",
+            "armored_soldier", "fast_raider", "herald", "herald_scout",
             "siege_engine", "skirmisher", "standard_bearer", "swarm_unit"
         ];
 
@@ -249,13 +249,16 @@ public sealed class TuningDataTests
     {
         string[] ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
-        Assert.Equal(ranks.Length, Tuning.DealerCardUnits.Count);
         Assert.All(ranks, rank => Assert.True(
             Tuning.DealerCardUnits.ContainsKey(rank),
             $"No unit mapped for Dealer rank {rank}."));
 
         Assert.Equal("siege_engine", Tuning.DealerCardUnits["K"]);
         Assert.Equal("herald", Tuning.DealerCardUnits["A"]);
+
+        // The Herald split: a low Ace deploys the scout instead of the elite. Milestone 3.
+        Assert.Equal("herald_scout", Tuning.DealerCardUnits["A_low"]);
+        Assert.Equal(ranks.Length + 1, Tuning.DealerCardUnits.Count);
     }
 
     [Fact]

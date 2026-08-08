@@ -165,6 +165,11 @@
       "leakDamage": 2
     },
     {
+      "$comment": [
+        "Standard bearer (Dealer Q). The 'aura' block is NOT SPECIFIED BY THE DESIGN - the handoff",
+        "says only 'buffs nearby enemies'. First pass: it hastens same-lane units within radius by",
+        "speedMultiplier while it is alive. Milestone 3."
+      ],
       "id": "standard_bearer",
       "displayName": "Standard bearer",
       "count": 1,
@@ -172,17 +177,36 @@
       "speed": 0.80,
       "flatArmor": 1.0,
       "spacingSeconds": null,
-      "leakDamage": 2
+      "leakDamage": 2,
+      "aura": {
+        "radius": 2.0,
+        "speedMultiplier": 1.5
+      }
     },
     {
       "id": "herald",
-      "displayName": "Herald",
+      "displayName": "Herald (elite)",
       "count": 1,
       "health": 15.0,
       "speed": 1.00,
       "flatArmor": 0.0,
       "spacingSeconds": null,
       "leakDamage": 3
+    },
+    {
+      "$comment": [
+        "Herald at 1 (Dealer Ace held low): 'a fragile scout at 1', where the elite 'herald' row above",
+        "is the Ace held at 11. NOT SPECIFIED BY THE DESIGN as stats - the handoff gives only the",
+        "qualitative split. Deployed via the dealerCardUnits 'A_low' key. Milestone 3."
+      ],
+      "id": "herald_scout",
+      "displayName": "Herald (scout)",
+      "count": 1,
+      "health": 4.0,
+      "speed": 1.60,
+      "flatArmor": 0.0,
+      "spacingSeconds": null,
+      "leakDamage": 1
     }
   ],
 
@@ -304,7 +328,8 @@
     "J": "skirmisher",
     "Q": "standard_bearer",
     "K": "siege_engine",
-    "A": "herald"
+    "A": "herald",
+    "A_low": "herald_scout"
   },
 
   "rules": {

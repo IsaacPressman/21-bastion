@@ -6,6 +6,12 @@
     <AssemblyName>Bastion.Core</AssemblyName>
   </PropertyGroup>
 
+  <!-- The test assembly may reach internal test seams (a scripted shoe for the worked-example
+       replay). Kept to the test project only; no gameplay path uses them. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bastion.Core.Tests" />
+  </ItemGroup>
+
   <!--
     ARCHITECTURE.md requirement 3: the core must be runnable headless, without the Godot scene
     tree, so the regression suites (all legal 2-5 card hands; 10,000 hands x 3 shoes) can run

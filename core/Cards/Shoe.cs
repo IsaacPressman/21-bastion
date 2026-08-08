@@ -52,6 +52,21 @@ public sealed class Shoe
     }
 
     /// <summary>
+    /// A shoe that yields a fixed sequence, for scripted scenario tests.
+    /// </summary>
+    /// <remarks>
+    /// Internal and test-only: a real shoe is shuffled from a seed. The worked-example acceptance
+    /// test needs specific cards in a specific order, which no seed is guaranteed to produce, so this
+    /// hands the wave loop exactly the sequence the doc describes. Not a gameplay path.
+    /// </remarks>
+    internal static Shoe FromOrder(IReadOnlyList<Rank> order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return new Shoe([.. order], seed: 0, generation: 0);
+    }
+
+    /// <summary>
     /// Draws the top card, returning it alongside the shoe that remains.
     /// </summary>
     /// <exception cref="InvalidOperationException">

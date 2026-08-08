@@ -4,11 +4,13 @@ A roguelite tower-defense game in which the player builds each wave's defenses b
 Every drawn card becomes a physical defense; the hand's total sets formation-wide power; the Dealer's
 hand is the army walking toward you.
 
-**Status: Milestone 2 complete.** The hand, shoe, placement, family locking, run links, forced replacement,
-and formation multiplier run headless and write the board the resolver already consumed; the output
-landmarks reproduce exactly. Milestone 3 (wave loop) is next — and note that **Open Decision 2 has been
-re-measured with run links modelled: deep placement is still weakly dominant (the margin held), so the
-socket geometry needs work before the march curve does.** See `docs/ROADMAP.md`.
+**Status: Milestone 3 complete.** The wave loop runs headless: the phase state machine
+(`core/Wave/WaveSession.cs`), the Dealer's draw-to-17, bust with the Overload strike, the one-move
+adjustment window, lane stakes, and persistence with ×1.00 reversion — all driving the Milestone 1 resolver
+and Milestone 2 producer unchanged in shape. `docs/design/example-wave.md` replays end to end
+(`tests/Wave/`). Milestone 4 (presentation) is next. **Open Decision 2 stands: deep placement is still
+weakly dominant (the margin held with run links modelled), so the socket geometry needs work before the
+march curve does — Milestone 3 deliberately did not touch it.** See `docs/ROADMAP.md`.
 
 **Current design revision: 7.1** — a correction pass over Revision 7, not a structural revision. It fixed
 an arithmetic error in the March Clock, reversed the stated direction of the march's placement bias,

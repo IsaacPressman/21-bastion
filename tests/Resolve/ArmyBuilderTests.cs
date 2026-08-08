@@ -36,12 +36,19 @@ public sealed class ArmyBuilderTests
     [InlineData(Rank.Jack, "skirmisher")]
     [InlineData(Rank.Queen, "standard_bearer")]
     [InlineData(Rank.King, "siege_engine")]
-    [InlineData(Rank.Ace, "herald")]
     public void Every_rank_maps_to_its_unit(Rank rank, string expected)
     {
         // Keyed on printed rank, not blackjack value: a Jack is a Skirmisher and a King is a siege
         // engine, though both count as ten in the Dealer's hand.
         Assert.Equal(expected, DealerDeployment.UnitFor(Fixture.Tuning, new Card(rank)));
+    }
+
+    [Fact]
+    public void The_herald_splits_by_ace_state()
+    {
+        // An Ace held high (11) is the elite; held low (1) it is the fragile scout. Milestone 3.
+        Assert.Equal("herald", DealerDeployment.UnitFor(Fixture.Tuning, new Card(Rank.Ace, AceHigh: true)));
+        Assert.Equal("herald_scout", DealerDeployment.UnitFor(Fixture.Tuning, new Card(Rank.Ace, AceHigh: false)));
     }
 
     [Fact]

@@ -213,6 +213,32 @@ public sealed record EnemyTuning
     public double? SpacingSeconds { get; init; }
 
     public required int LeakDamage { get; init; }
+
+    /// <summary>
+    /// An aura that buffs nearby same-lane units, or null for a unit that carries none.
+    /// </summary>
+    /// <remarks>
+    /// NOT SPECIFIED BY THE DESIGN. Only the Standard bearer (Dealer Q) carries one; the handoff
+    /// describes it qualitatively as "buffs nearby enemies" and gives no magnitude or radius. First
+    /// pass, Milestone 3 - see the $comment on the standard_bearer row in data/tuning.json.
+    /// </remarks>
+    public EnemyAuraTuning? Aura { get; init; }
+}
+
+/// <summary>
+/// A unit's aura: a speed buff applied to other live units within radius in the same lane.
+/// </summary>
+/// <remarks>
+/// NOT SPECIFIED BY THE DESIGN. Modelled as a speed multiplier because it composes cleanly with the
+/// Spade slow in the resolver's move phase and needs no new per-tick state on the buffed unit.
+/// </remarks>
+public sealed record EnemyAuraTuning
+{
+    /// <summary>Path units either side of the carrier within which the buff applies.</summary>
+    public required double Radius { get; init; }
+
+    /// <summary>Factor applied to a buffed unit's speed. Above 1 hastens; the prototype only hastens.</summary>
+    public required double SpeedMultiplier { get; init; }
 }
 
 public sealed record CombatTuning
