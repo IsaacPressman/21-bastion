@@ -4,9 +4,9 @@
 inferred from design constraints rather than stated by them. Revise freely — but the four hard
 requirements below come directly from the design and are not negotiable without changing the design.
 
-Milestone 0 has landed requirements **3** and **4** (engine-free headless core, tuning as data) and the
-`core/Config` and `core/Diagnostics` layers. Requirements **1** and **2** land with the resolver in
-Milestone 1.
+Milestone 0 landed requirements **3** and **4** (engine-free headless core, tuning as data) and the
+`core/Config` and `core/Diagnostics` layers. **Milestone 1 landed requirements 1 and 2** with the resolver:
+one simulation path in `core/Resolve/Resolver.cs`, and two forecast types that share no ancestor.
 
 ---
 
@@ -100,15 +100,22 @@ data/tuning.json         ✅ every tuning value, all three march presets
 core/Bastion.Core.csproj ✅ engine-free game logic; guarded against GodotSharp
   Config/                ✅ TuningData, TuningLoader, TuningValidationException
   Diagnostics/           ✅ DebugGate
-  Cards/                    rank, value, power curve, ace states, shoe
+  Cards/                 ◐ Rank, Card, ace state — shoe and power lookup pending (M2)
   Hand/                     blackjack state, totals, formation strength
-  Board/                    lanes, sockets, towers, placement, run links
-  March/                    entry point, escalating step, engagement
-  Dealer/                   draw policy, card→unit mapping
-  Resolve/                  the resolver: enemies, targeting, timeline, outcomes
-tests/                   ✅ Config/, Diagnostics/, March/
+  Board/                 ✅ SocketRef, Family, StandingOrder, TowerState, BoardState
+                            — placement rules, forced replacement, run links pending (M2)
+  March/                 ✅ entry point, escalating step, engagement
+  Dealer/                ◐ DealerDeployment (card→unit, lane) — draw policy pending (M3)
+  Resolve/               ✅ ArmyBuilder, Resolver, Targeting, timeline, outcomes,
+                            VisibleThreat, FinalForecast, UnmodelledBehaviour
+tests/                   ✅ Config/, Diagnostics/, March/, Resolve/, Measurement/
 docs/
 ```
+
+`core/Board/TowerState` carries `FormationMultiplier` and `RunBonus` as **separate** fields rather than one
+pre-multiplied number. That is the seam Milestone 2 attaches to: it *writes* those fields, and the resolver
+keeps reading them without change. It also lets per-tower activity reporting explain *why* a tower hit as
+hard as it did, which is the point of reporting it at all.
 
 The `core` ↔ `game` boundary is the load-bearing one. If a `core` type imports a Godot type, requirement 3
 is broken — so `Bastion.Core.csproj` carries a `GuardEngineFreeCore` target that fails the build on a

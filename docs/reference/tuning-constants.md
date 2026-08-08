@@ -262,6 +262,107 @@ See `../design/03-march-clock.md` and `../prototype/RISKS-AND-ADDBACKS.md`.
 
 ---
 
+## Invented for the resolver
+
+> **Nothing in this section comes from the design.** The handoff specifies the *enemy* side of combat
+> completely and the *tower* side not at all. There is no fire rate, no meaning for "power" in combat
+> units, no tick rate, no splash or slow magnitude, no junction penalty, no spawn schedule, no lane
+> assignment for Dealer units, and no base-wave composition outside one paragraph of prose in
+> `../design/example-wave.md`. **The resolver cannot run without them.**
+
+These were decided in one deliberate pass at Milestone 1 rather than invented at call sites, and they live
+in `data/tuning.json` behind a comment block that says the same thing. They are first-pass and expected to
+be wrong, exactly like every number above — but unlike those, **there is no design statement behind them to
+check against.** Treat a disagreement here as a decision to revisit, not a bug.
+
+### Simulation
+
+| Constant | Value | Reasoning |
+|---|---|---|
+| `sim.tickSeconds` | **0.05** (20 Hz) | 240–400 ticks over the 12–20 s wave. Every tuned duration below and every enemy spacing lands on an exact tick boundary, so no spawn time needs rounding. **Nothing in the resolver rounds** — positions, health, and damage stay `double`. The loader rejects any duration that is not a whole multiple of the tick. |
+
+### Towers
+
+| Constant | Value | Reasoning |
+|---|---|---|
+| Meaning of card power | **damage per shot** | `shot = basePower × formationMultiplier × (1 + runBonus)`. |
+| `towers.cooldownSeconds` | **1.0** | One shared cooldown, not one per family. The resolver contract names "cooldown" as a shared input so it has to exist; a single value keeps a first pass honest about being invented. |
+| Default targeting | **nearest to the tower** | Ties by spawn order. Chosen so that *both* Focus modes stay meaningful — a leading-target default would make one of the design's own standing orders a no-op. |
+| `towers.junctionPathPosition` | **6.0** | The middle socket. Derived from geometry the same way the entry clamp is; the loader fails the load if they disagree. |
+| `towers.junctionContributionFraction` | **0.50** | The design says "reduced contribution" and never quantifies it. At 0.5 the junction's total throughput matches a lane socket's while being split across two lanes — it buys breadth and forfeits focus, on top of forfeiting runs. |
+| `towers.junctionFaceCardExempt` | **true** | Stated by `../design/04-cards-as-defenses.md`; only the flag is new. |
+
+### Ace Bastion placement
+
+> **Introduced at Milestone 2.** The design specifies the Ace Bastion's *power* (5.0), that it does not
+> count as a hand card, and that it shares the hand multiplier — but **not which socket it occupies or
+> which family it wears.** `WaveDraft.AceBastion` decides both as first-pass choices; treat a disagreement
+> here as a decision to revisit, not a bug.
+
+| Constant | Value | Reasoning |
+|---|---|---|
+| Ace Bastion socket | **junction if free, else the deepest empty lane socket** | A King-class anchor has face-card range and the junction exemption, so at the junction it covers both lanes at full power — the natural home for a free anchor. A natural is two cards, so a socket is always free. |
+| Ace Bastion family | **Club** | A neutral placeholder. The anchor has no design-stated suit keyword; Club is a first pass. Revisit in Milestone 3 with bust, stakes, and Overload, where the anchor's combat behaviour first matters. |
+
+### Suit keywords
+
+| Constant | Value | Reasoning |
+|---|---|---|
+| `suits.clubs.splashRadius` | **1.0** | A third of socket spacing: rewards hitting a clustered swarm without reaching from one socket's kill zone into another's. Falls out as counterplay — a column looser than 1.0 unit outruns the blast, which is why fast raiders (1.2 units apart) are splash-proof and armored soldiers (0.975 apart) are not. |
+| `suits.clubs.splashFraction` | **0.50** | Armor and the damage floor apply **per hit**, so a swarm and an armored soldier in the same blast take different amounts. |
+| `suits.spades.slowMultiplier` | **0.60** | |
+| `suits.spades.slowSeconds` | **1.5** | |
+| `suits.spades.slowStacks` | **false** | Refresh, never compound. Two Spades stacking to ×0.36 is a hard stop wearing the word "slow". The loader rejects `true`. |
+
+### Standing orders
+
+Hold's socket threshold and Focus's mode are **per-tower board state, not tuning**. Only trigger-on-group
+needs numbers.
+
+| Constant | Value |
+|---|---|
+| `standingOrders.triggerGroupMinEnemies` | **3** |
+| `standingOrders.triggerGroupRadius` | **1.0** — the splash radius |
+
+Hold takes a path position rather than a socket index, because the junction has no lane socket index and can
+still hold. Focus is an enum (`None` / `PreferArmored` / `PreferLeading`) because the design offers two
+*alternatives*, not two toggles — and it is a **preference, not a restriction**: a Focus-armored tower with
+no armored target in range still fires.
+
+### The wave
+
+| Constant | Value | Reasoning |
+|---|---|---|
+| `waves.dealerCardDeploysFullPack` | **true** | A Dealer card deploys the whole pack from its enemy row: a 3 is eight swarm units, a King is one siege engine. This is what the design's own table describes — "Swarm pack — many, fragile" and "Fast raiders" against a singular "Siege engine" — and it is what makes the upcard readable as a threat shape. |
+| `waves.dealerLaneAssignment` | **`alternate_from_vanguard`** | The Vanguard takes the encounter's vanguard lane; every later card alternates. Deterministic, unsteerable, and it keeps both lanes live so lane triage stays a real decision rather than resolving itself from the upcard. |
+| `waves.groupGapSeconds` | **1.0** | Groups run sequentially within a lane — base wave, then Vanguard, then Dealer draws in draw order — each at its own spacing, separated by this gap. |
+| Vanguard start | **at the entry point, at t=0** | "Already standing on the field" is *presentation* — the upcard is visible on the board during the draw — not a separate movement rule. A head start would be a second march system. |
+
+### Encounters
+
+Base wave composition now ships as data (`encounters` in `data/tuning.json`), because
+`../design/example-wave.md` is the Milestone 3 acceptance test and needs to be replayable.
+
+`example_wave`: lane one **Bastion**, three armored soldiers; lane two **Vault**, **six** fast raiders.
+Six, not the roster's five — the document states lane two forecasts **6 damage** undefended and fast raiders
+leak 1 each. **Encounter groups carry explicit counts that override the roster; the roster `count` is the
+Dealer pack size.** Lane one's three armored soldiers leak 2 each, also 6.
+
+### Resolver rules that are choices, not data
+
+Two more decisions have no tuning key because they are structural:
+
+- **Tick phase order** is pinned in `core/Resolve/Resolver.cs`: spawn → towers fire → remove dead → move →
+  leak check. Firing before moving gives a tower its shot at an enemy in its final tick. Two towers that
+  would each kill the same enemy produce different timelines depending which fires first, so this order is
+  not allowed to be incidental.
+- **Lanes resolve independently.** Enemies never leave their lane and a junction tower fires into both at a
+  reduced contribution each, so a lane's outcome depends on nothing outside it. **The Skirmisher's
+  junction lane-change is the one specified behaviour that breaks this** — it is not a rule added inside a
+  phase, it is a change to the shape of the lane loop. See `core/Resolve/UnmodelledBehaviour.cs`.
+
+---
+
 ## Known Discrepancies
 
 Live in Revision 7.1. **Resolve deliberately; do not silently pick a side.**
@@ -293,3 +394,57 @@ true.
 `../design/example-wave.md` says "six safe cards in a pile of twenty-two." With 3 player cards, 1 upcard,
 and 1 hidden card removed from a 26-card shoe, **21** remain. The six safe cards (two each of A, 2, 3) are
 correct. Cosmetic; affects the prose, not the system.
+
+### 4. Example wave reports fractional leakage — ⚠ material, resolved in favour of integers
+
+`../design/example-wave.md` gives lane leakage as **6.0 → 3.8 → 5.1 → 3.4**, but every enemy's
+`leakDamage` is an integer (1, 2, 5) and no rule anywhere produces a fraction of one.
+
+**Integers govern.** Leakage is the integer sum of `leakDamage` over units that reach the end. The
+alternative — scaling a leak by the unit's surviving health — is a new rule the design never states, and
+inventing one to match prose would put a mechanic in the game because of a typo.
+
+> **Reproduce the decision, not the decimals.** The example's *shape* is the acceptance test: an undefended
+> lane at 6, a Visible Threat below that, a Final Forecast that rises when reinforcements land, and an
+> adjustment that brings it back down. Every one of those relations holds with integers.
+
+### 5. Example wave quotes lane-ideal engagement, not the occupied-socket sum — minor
+
+The worked example reports "full **18.0** engagement" with only **two** towers placed, then 16.5 and 13.0.
+Those are the three-socket lane-ideal figures from `../design/03-march-clock.md`, not the board's actual
+occupied-socket sum — and engagement is explicitly a property of **occupied** sockets.
+
+**No engagement test may assert against the example's prose numbers.** The published tables in
+`03-march-clock.md` are the ones with full occupancy behind them, and those are what
+`tests/March/EngagementTests.cs` checks.
+
+### 6. Wave resolution target and armored soldier speed are incompatible — ⚠ material, unresolved
+
+`combat.waveResolutionSeconds` targets **12–20 s**. An armored soldier moves at **0.65** along a **12.0**
+path, so it crosses in **18.46 s on its own**, and a full pack of three at 1.50 s spacing cannot finish
+before **21.46 s** — as the only group in its lane, starting at t=0, with nothing else scheduled.
+
+**No spawn schedule reconciles this.** The undefended worked example runs **25.4 s**; defended it runs
+**17.0 s**, inside the window. So the pacing target implicitly assumes a board that kills things early.
+
+All three inputs are design numbers, so this is logged rather than fixed. Three candidate resolutions, in
+rough order of how little they disturb:
+
+1. **Accept it** — the target describes a defended wave, which is every wave the player actually plays.
+2. **Raise the armored soldier's speed** toward 0.8, which also softens its role as the slow anchor.
+3. **Widen the target**, which is the least informative option because the target exists to keep combat
+   watchable.
+
+Pinned by `tests/Resolve/PacingTests.cs`, which fails if somebody resolves it — remove this entry then.
+
+### 7. Vanguard pack size — table says plural, worked example says singular — ⚠ material
+
+The unit table in `../design/06-dealer-and-enemies.md` reads "8–10 **Armored soldiers**" (plural, and
+singular for "Siege engine"), which is what `waves.dealerCardDeploysFullPack` implements: a 10 deploys the
+roster's **three** armored soldiers. But `../design/example-wave.md` calls the Vanguard 10 "**an** armored
+soldier already standing at the head of lane one" — one unit.
+
+**The table governs**, because pack size is what makes the upcard a readable threat *shape* rather than a
+number, which is the whole stated point of the Dealer redesign. The consequence is that the worked example's
+lane one is heavier than its prose suggests. Revisit if waves land too hard — this is the single largest
+lever on wave size in the prototype.

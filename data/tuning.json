@@ -193,6 +193,104 @@
     "waveResolutionSecondsMax": 20.0
   },
 
+  "$comment_resolver_block": [
+    "EVERYTHING FROM HERE TO 'rules' IS NOT SPECIFIED BY THE DESIGN.",
+    "The handoff specifies the enemy side of combat completely and the tower side not at all: there is",
+    "no fire rate, no meaning for 'power' in combat units, no tick rate, no splash or slow magnitude,",
+    "no junction penalty, no spawn schedule, and no base wave composition outside one paragraph of prose",
+    "in design/example-wave.md. The resolver cannot run without them.",
+    "These were decided deliberately rather than invented at a call site. Each is listed with its",
+    "reasoning in reference/tuning-constants.md section 'Invented for the resolver'.",
+    "They are first-pass and expected to be wrong, like every other number in this file."
+  ],
+
+  "sim": {
+    "$comment": [
+      "ARCHITECTURE.md requires fixed simulation ticks and names 'rounding' as part of the forecast",
+      "contract, but specifies neither. 20 Hz gives 240-400 ticks over the 12-20 s wave window, and",
+      "every spacing value below lands on an exact tick boundary, so no spawn time needs rounding.",
+      "Positions, health, and damage stay double; nothing is rounded anywhere in the resolver."
+    ],
+    "tickSeconds": 0.05
+  },
+
+  "towers": {
+    "$comment": [
+      "Card power is damage per shot: shot = basePower * formationMultiplier * (1 + runBonus).",
+      "One shared cooldown rather than per-family cooldowns - the resolver contract names 'cooldown'",
+      "so it must exist, and a single value keeps this first pass honest about being invented.",
+      "The junction fires into both lanes at half damage; face cards are exempt per design/04.",
+      "junctionPathPosition is validated against the middle socket, not chosen independently of it."
+    ],
+    "cooldownSeconds": 1.0,
+    "junctionPathPosition": 6.0,
+    "junctionContributionFraction": 0.5,
+    "junctionFaceCardExempt": true
+  },
+
+  "suits": {
+    "$comment": [
+      "design/04-cards-as-defenses.md gives the keywords 'splash' and 'slow' and no magnitudes.",
+      "Splash radius is a third of socket spacing, so it rewards hitting a clustered swarm without",
+      "reaching from one socket's kill zone into another's. Slow refreshes rather than stacks, so a",
+      "second Spade cannot compound into a hard stop."
+    ],
+    "clubs": {
+      "splashRadius": 1.0,
+      "splashFraction": 0.5
+    },
+    "spades": {
+      "slowMultiplier": 0.6,
+      "slowSeconds": 1.5,
+      "slowStacks": false
+    }
+  },
+
+  "standingOrders": {
+    "$comment": [
+      "design/05-battlefield.md names three orders and parameterises none of them. Hold takes a socket",
+      "position (per-tower board state, not tuned). Focus is an enum (per-tower). Only trigger-on-group",
+      "needs tuned numbers. An unset order is a no-op: an unordered tower uses the default target rule."
+    ],
+    "triggerGroupMinEnemies": 3,
+    "triggerGroupRadius": 1.0
+  },
+
+  "waves": {
+    "$comment": [
+      "Per-type spacing exists on the enemy rows; nothing says when groups start or how they interleave.",
+      "Groups run sequentially within a lane - base wave, then Vanguard, then Dealer draws in draw order -",
+      "each at its own spacing, separated by groupGapSeconds. This gives a wave a readable shape and lands",
+      "in the 12-20 s window in combat.waveResolutionSeconds*.",
+      "dealerCardDeploysFullPack: a Dealer card deploys the whole pack from its enemy row (a 3 deploys 8",
+      "swarm, a King deploys 1 siege), which is what 'Swarm pack - many, fragile' against 'Siege engine'",
+      "describes. The Vanguard spawns at t=0 at the current entry point; 'already standing on the field'",
+      "is presentation, not a separate movement rule."
+    ],
+    "groupGapSeconds": 1.0,
+    "dealerLaneAssignment": "alternate_from_vanguard",
+    "dealerCardDeploysFullPack": true
+  },
+
+  "encounters": [
+    {
+      "$comment": [
+        "design/example-wave.md is the Milestone 3 acceptance test, so its setup ships as data.",
+        "Lane one: Bastion stakes, three armored soldiers (leak 2 each = 6 undefended).",
+        "Lane two: Vault stakes, a fast reinforcement package the doc says forecasts 6 damage undefended.",
+        "Fast raiders leak 1 each, so the package is SIX raiders, not the roster's five - encounter groups",
+        "carry explicit counts and override the roster default. The roster count stays the Dealer pack size."
+      ],
+      "id": "example_wave",
+      "vanguardLane": 0,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 3 }],
+        [{ "enemyId": "fast_raider", "count": 6 }]
+      ]
+    }
+  ],
+
   "dealerCardUnits": {
     "2": "swarm_unit",
     "3": "swarm_unit",

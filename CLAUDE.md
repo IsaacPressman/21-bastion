@@ -4,9 +4,11 @@ A roguelite tower-defense game in which the player builds each wave's defenses b
 Every drawn card becomes a physical defense; the hand's total sets formation-wide power; the Dealer's
 hand is the army walking toward you.
 
-**Status: Milestone 1 in progress.** Milestone 0 (scaffold, tuning-data layer, headless test suite,
-oracle gate) is complete. The march clock and engagement systems are built and tested; the rest of the
-resolver is next. See `docs/ROADMAP.md`.
+**Status: Milestone 2 complete.** The hand, shoe, placement, family locking, run links, forced replacement,
+and formation multiplier run headless and write the board the resolver already consumed; the output
+landmarks reproduce exactly. Milestone 3 (wave loop) is next — and note that **Open Decision 2 has been
+re-measured with run links modelled: deep placement is still weakly dominant (the margin held), so the
+socket geometry needs work before the march curve does.** See `docs/ROADMAP.md`.
 
 **Current design revision: 7.1** — a correction pass over Revision 7, not a structural revision. It fixed
 an arithmetic error in the March Clock, reversed the stated direction of the march's placement bias,
@@ -174,6 +176,12 @@ disagreement is a bug — flag it.
   tuning value at a call site. The loader rejects internally inconsistent files at load, including
   data that would contradict a stated invariant (Overload scaling with excess, a Dealer that skips
   resolution on bust).
+- **Some tuning values have no design behind them.** The `sim`, `towers`, `suits`, `standingOrders`,
+  `waves`, and `encounters` sections were decided at Milestone 1 because the resolver could not run
+  without them — the handoff specifies the enemy side of combat completely and the tower side not at
+  all. They are listed with reasoning in `docs/reference/tuning-constants.md` § **Invented for the
+  resolver**, and flagged in the JSON itself. **A disagreement there is a decision to revisit, not a
+  bug**, because there is no design statement to check against.
 - **Oracle-tier values go through `DebugGate`** (`core/Diagnostics/DebugGate.cs`), never around it.
   `OracleOnly` skips the computation entirely in a player build; `RequireInstrumented` guards a whole
   routine. The gate is compile-time and deliberately **not** tied to the Debug configuration, because a

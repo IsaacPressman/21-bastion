@@ -116,6 +116,113 @@ public sealed class TuningValidationTests
     }
 
     [Fact]
+    public void Rejects_a_cooldown_that_is_not_a_whole_number_of_ticks()
+    {
+        // The resolver samples on a fixed tick, so an off-tick duration silently becomes a
+        // different duration - consistently, in both the forecast and the wave, so nothing
+        // downstream would ever disagree and reveal it.
+        string json = ValidJsonWith("\"cooldownSeconds\": 1.0", "\"cooldownSeconds\": 1.03");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("cooldownSeconds", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("tickSeconds", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_an_enemy_spacing_that_is_not_a_whole_number_of_ticks()
+    {
+        string json = ValidJsonWith("\"spacingSeconds\": 0.45", "\"spacingSeconds\": 0.47");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("spacingSeconds", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_junction_position_that_is_not_the_middle_socket()
+    {
+        // Derived from geometry, like the entry clamp. If the sockets move, this must follow.
+        string json = ValidJsonWith("\"junctionPathPosition\": 6.0", "\"junctionPathPosition\": 7.0");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("junctionPathPosition", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_junction_contribution_above_one()
+    {
+        // Above 1 the junction out-damages a lane socket in both lanes at once, which makes it the
+        // auto-best pick and collapses the placement decision the prototype exists to test.
+        string json = ValidJsonWith("\"junctionContributionFraction\": 0.5", "\"junctionContributionFraction\": 1.5");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("junctionContributionFraction", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_stacking_slow()
+    {
+        // Two Spades compounding to 0.36 speed is a hard stop wearing the word "slow".
+        string json = ValidJsonWith("\"slowStacks\": false", "\"slowStacks\": true");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("slowStacks", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_splash_fraction_above_one()
+    {
+        string json = ValidJsonWith("\"splashFraction\": 0.5", "\"splashFraction\": 1.4");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("splashFraction", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_the_Works_stake_which_is_full_game_only()
+    {
+        string json = ValidJsonWith("[\"bastion\", \"vault\"]", "[\"bastion\", \"works\"]");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("works", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_base_wave_referencing_an_unknown_enemy()
+    {
+        string json = ValidJsonWith("\"enemyId\": \"armored_soldier\"", "\"enemyId\": \"armoured_soldier\"");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("armoured_soldier", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_base_wave_with_the_wrong_number_of_lanes()
+    {
+        string json = ValidJsonWith("\"lanes\": 2", "\"lanes\": 3");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("baseWave", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Reports_a_missing_file_with_the_full_path()
     {
         TuningValidationException ex = Assert.Throws<TuningValidationException>(

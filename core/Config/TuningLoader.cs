@@ -265,10 +265,201 @@ public static class TuningLoader
             errors.Add("rules.dealerResolvesOnPlayerBust must be true: bust never dodges the wave.");
         }
 
+        ValidateResolver(d, enemyIds, errors);
+
         if (errors.Count > 0)
         {
             throw new TuningValidationException(
                 $"Tuning data in '{source}' is invalid:{Environment.NewLine}  - {string.Join($"{Environment.NewLine}  - ", errors)}");
+        }
+    }
+
+    /// <summary>
+    /// Checks the sections the design does not specify, which are therefore the ones most likely to
+    /// be edited casually.
+    /// </summary>
+    /// <remarks>
+    /// The timing checks matter more than they look. The resolver samples on a fixed tick, so a
+    /// duration that is not a whole number of ticks silently becomes a different duration - and it
+    /// would do so consistently, which means the forecast and the wave would agree with each other
+    /// while both disagreeing with the tuning file. Rejecting it at load is the only place that
+    /// catches it.
+    /// </remarks>
+    private static void ValidateResolver(TuningData d, HashSet<string> enemyIds, List<string> errors)
+    {
+        double tick = d.Sim.TickSeconds;
+
+        if (tick <= 0)
+        {
+            errors.Add("sim.tickSeconds must be positive.");
+            return; // Every check below divides by it.
+        }
+
+        void RequireWholeTicks(string name, double seconds)
+        {
+            if (seconds <= 0)
+            {
+                errors.Add($"{name} ({seconds}) must be positive.");
+            }
+            else if (Math.Abs(Math.Round(seconds / tick) - (seconds / tick)) > 1e-9)
+            {
+                errors.Add($"{name} ({seconds}) is not a whole multiple of sim.tickSeconds ({tick}); it would resolve as a different duration than the one tuned.");
+            }
+        }
+
+        RequireWholeTicks("towers.cooldownSeconds", d.Towers.CooldownSeconds);
+        RequireWholeTicks("waves.groupGapSeconds", d.Waves.GroupGapSeconds);
+        RequireWholeTicks("suits.spades.slowSeconds", d.Suits.Spades.SlowSeconds);
+
+        foreach (EnemyTuning enemy in d.Enemies)
+        {
+            if (enemy.SpacingSeconds is double spacing)
+            {
+                RequireWholeTicks($"enemies.{enemy.Id}.spacingSeconds", spacing);
+            }
+
+            if (enemy.Health <= 0)
+            {
+                errors.Add($"enemies.{enemy.Id}.health must be positive.");
+            }
+
+            if (enemy.Speed <= 0)
+            {
+                errors.Add($"enemies.{enemy.Id}.speed must be positive, or the unit never reaches the end and the wave never resolves.");
+            }
+
+            if (enemy.FlatArmor < 0)
+            {
+                errors.Add($"enemies.{enemy.Id}.flatArmor must not be negative.");
+            }
+
+            if (enemy.Count <= 0)
+            {
+                errors.Add($"enemies.{enemy.Id}.count must be positive; it is the Dealer pack size.");
+            }
+        }
+
+        // Towers. The junction position is derived from geometry the same way the entry clamp is:
+        // it is the middle socket, so a junction tower covers the same ground as a mid-lane one.
+        if (d.Towers.JunctionPathPosition < 0 || d.Towers.JunctionPathPosition > d.Geometry.PathLength)
+        {
+            errors.Add($"towers.junctionPathPosition ({d.Towers.JunctionPathPosition}) is outside the path 0..{d.Geometry.PathLength}.");
+        }
+        else if (d.Geometry.SocketPositions.Count > 0)
+        {
+            double middleSocket = d.Geometry.SocketPositions.OrderBy(p => p).ElementAt(d.Geometry.SocketPositions.Count / 2);
+            if (Math.Abs(d.Towers.JunctionPathPosition - middleSocket) > 1e-9)
+            {
+                errors.Add($"towers.junctionPathPosition ({d.Towers.JunctionPathPosition}) must equal the middle socket position ({middleSocket}); the junction covers the same ground as a mid-lane socket, it just splits its fire.");
+            }
+        }
+
+        if (d.Towers.JunctionContributionFraction is <= 0 or > 1)
+        {
+            errors.Add("towers.junctionContributionFraction must be in (0, 1]; above 1 the junction would out-damage a lane socket in both lanes at once, which makes it the auto-best pick.");
+        }
+
+        // Suits
+        if (d.Suits.Clubs.SplashRadius < 0)
+        {
+            errors.Add("suits.clubs.splashRadius must not be negative.");
+        }
+
+        if (d.Suits.Clubs.SplashFraction is < 0 or > 1)
+        {
+            errors.Add("suits.clubs.splashFraction must be in [0, 1]; splash never exceeds the primary hit.");
+        }
+
+        if (d.Suits.Spades.SlowMultiplier is <= 0 or > 1)
+        {
+            errors.Add("suits.spades.slowMultiplier must be in (0, 1]; at 0 a Spade is a hard stop, above 1 it is a hasten.");
+        }
+
+        if (d.Suits.Spades.SlowStacks)
+        {
+            errors.Add("suits.spades.slowStacks must be false: stacking multipliers lets two Spades approximate a hard stop, which is a different mechanic than 'slow'.");
+        }
+
+        // Standing orders
+        if (d.StandingOrders.TriggerGroupMinEnemies < 1)
+        {
+            errors.Add("standingOrders.triggerGroupMinEnemies must be at least 1, or the order never holds fire.");
+        }
+
+        if (d.StandingOrders.TriggerGroupRadius <= 0)
+        {
+            errors.Add("standingOrders.triggerGroupRadius must be positive.");
+        }
+
+        // Waves
+        string[] laneAssignments = ["alternate_from_vanguard"];
+        if (!laneAssignments.Contains(d.Waves.DealerLaneAssignment, StringComparer.Ordinal))
+        {
+            errors.Add($"waves.dealerLaneAssignment '{d.Waves.DealerLaneAssignment}' is not one of: {string.Join(", ", laneAssignments)}.");
+        }
+
+        // Encounters
+        string[] prototypeStakes = ["bastion", "vault"];
+
+        if (d.Encounters.Count == 0)
+        {
+            errors.Add("encounters must not be empty; the resolver has nothing to run against.");
+        }
+
+        if (d.Encounters.Select(e => e.Id).Distinct(StringComparer.Ordinal).Count() != d.Encounters.Count)
+        {
+            errors.Add("encounters contains duplicate ids.");
+        }
+
+        foreach (EncounterTuning encounter in d.Encounters)
+        {
+            if (encounter.LaneStakes.Count != d.Geometry.Lanes)
+            {
+                errors.Add($"encounters.{encounter.Id}.laneStakes has {encounter.LaneStakes.Count} entries but geometry.lanes is {d.Geometry.Lanes}.");
+            }
+
+            foreach (string stake in encounter.LaneStakes)
+            {
+                if (!prototypeStakes.Contains(stake, StringComparer.Ordinal))
+                {
+                    // The Works stake exists in the design but is full-game only - see
+                    // docs/prototype/SCOPE.md. Accepting it here would let it reach the resolver
+                    // with no behaviour behind it.
+                    errors.Add($"encounters.{encounter.Id}.laneStakes contains '{stake}'; the prototype supports only: {string.Join(", ", prototypeStakes)}.");
+                }
+            }
+
+            if (encounter.VanguardLane < 0 || encounter.VanguardLane >= d.Geometry.Lanes)
+            {
+                errors.Add($"encounters.{encounter.Id}.vanguardLane ({encounter.VanguardLane}) is not a lane index in 0..{d.Geometry.Lanes - 1}.");
+            }
+
+            if (encounter.BaseWave.Count != d.Geometry.Lanes)
+            {
+                errors.Add($"encounters.{encounter.Id}.baseWave has {encounter.BaseWave.Count} lanes but geometry.lanes is {d.Geometry.Lanes}.");
+            }
+
+            foreach (SpawnGroupTuning group in encounter.BaseWave.SelectMany(lane => lane))
+            {
+                if (!enemyIds.Contains(group.EnemyId))
+                {
+                    errors.Add($"encounters.{encounter.Id}.baseWave references enemy '{group.EnemyId}', which is not in the enemies list.");
+                }
+
+                if (group.Count <= 0)
+                {
+                    errors.Add($"encounters.{encounter.Id}.baseWave has a group of '{group.EnemyId}' with count {group.Count}.");
+                }
+                else if (group.Count > 1
+                         && enemyIds.Contains(group.EnemyId)
+                         && d.Enemy(group.EnemyId).SpacingSeconds is null)
+                {
+                    // Without a spacing there is nothing to separate the units, so they would all
+                    // enter on the same tick at the same position. The roster only leaves spacing
+                    // null for types whose count is 1, so this is only reachable from encounter data.
+                    errors.Add($"encounters.{encounter.Id}.baseWave asks for {group.Count} of '{group.EnemyId}', which has no spacingSeconds; they would all enter on the same tick at the same position.");
+                }
+            }
         }
     }
 }

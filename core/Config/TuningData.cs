@@ -22,8 +22,26 @@ public sealed record TuningData
     public required RunLinkTuning RunLinks { get; init; }
     public required IReadOnlyList<EnemyTuning> Enemies { get; init; }
     public required CombatTuning Combat { get; init; }
+    public required SimTuning Sim { get; init; }
+    public required TowerTuning Towers { get; init; }
+    public required SuitTuning Suits { get; init; }
+    public required StandingOrderTuning StandingOrders { get; init; }
+    public required WaveTuning Waves { get; init; }
+    public required IReadOnlyList<EncounterTuning> Encounters { get; init; }
     public required IReadOnlyDictionary<string, string> DealerCardUnits { get; init; }
     public required RulesTuning Rules { get; init; }
+
+    /// <summary>The enemy row with the given id.</summary>
+    /// <exception cref="TuningValidationException">If no such enemy is defined.</exception>
+    public EnemyTuning Enemy(string id) =>
+        Enemies.FirstOrDefault(e => string.Equals(e.Id, id, StringComparison.Ordinal))
+        ?? throw new TuningValidationException($"No enemy defined with id '{id}'.");
+
+    /// <summary>The encounter with the given id.</summary>
+    /// <exception cref="TuningValidationException">If no such encounter is defined.</exception>
+    public EncounterTuning Encounter(string id) =>
+        Encounters.FirstOrDefault(e => string.Equals(e.Id, id, StringComparison.Ordinal))
+        ?? throw new TuningValidationException($"No encounter defined with id '{id}'.");
 
     /// <summary>The march curve currently selected by <see cref="MarchTuning.ActivePreset"/>.</summary>
     [JsonIgnore]
@@ -207,6 +225,157 @@ public sealed record CombatTuning
 
     public required double WaveResolutionSecondsMin { get; init; }
     public required double WaveResolutionSecondsMax { get; init; }
+}
+
+/// <summary>
+/// Simulation timing. NOT SPECIFIED BY THE DESIGN - see the $comment block in data/tuning.json.
+/// </summary>
+/// <remarks>
+/// ARCHITECTURE.md requires fixed ticks and names rounding as part of the forecast contract, but
+/// gives neither. Nothing in the resolver rounds: positions, health, and damage stay double, and
+/// the tick only decides when things are sampled.
+/// </remarks>
+public sealed record SimTuning
+{
+    public required double TickSeconds { get; init; }
+
+    /// <summary>Whole ticks in <paramref name="seconds"/>, rounded to nearest.</summary>
+    /// <remarks>
+    /// The loader rejects any tuned duration that is not a whole multiple of the tick, so this
+    /// never silently truncates a value the designer meant to be exact.
+    /// </remarks>
+    public int TicksIn(double seconds) => (int)Math.Round(seconds / TickSeconds, MidpointRounding.AwayFromZero);
+}
+
+/// <summary>
+/// The tower side of combat. NOT SPECIFIED BY THE DESIGN.
+/// </summary>
+/// <remarks>
+/// Card power is damage per shot. One shared cooldown rather than per-family cooldowns: the
+/// resolver contract in design/05-battlefield.md names cooldown as a shared input, so it must
+/// exist, and a single value keeps a first pass honest about being invented.
+/// </remarks>
+public sealed record TowerTuning
+{
+    public required double CooldownSeconds { get; init; }
+
+    /// <summary>Where a junction tower sits on both lanes' paths. Validated against the middle socket.</summary>
+    public required double JunctionPathPosition { get; init; }
+
+    /// <summary>
+    /// Damage scale for a junction tower, applied in each lane it fires into.
+    /// </summary>
+    /// <remarks>
+    /// design/05-battlefield.md says the junction fires into either lane "at reduced contribution"
+    /// and never quantifies it. At 0.5 the junction's total throughput matches a lane socket's while
+    /// being split across two lanes - it buys breadth and forfeits focus, on top of forfeiting runs.
+    /// </remarks>
+    public required double JunctionContributionFraction { get; init; }
+
+    /// <summary>
+    /// Whether face cards escape the junction penalty. True per design/04-cards-as-defenses.md:
+    /// "may occupy the shared junction socket without the usual contribution penalty."
+    /// </summary>
+    public required bool JunctionFaceCardExempt { get; init; }
+}
+
+/// <summary>Club and Spade keyword magnitudes. NOT SPECIFIED BY THE DESIGN.</summary>
+public sealed record SuitTuning
+{
+    public required ClubTuning Clubs { get; init; }
+    public required SpadeTuning Spades { get; init; }
+}
+
+/// <summary>Artillery. Keyword: splash.</summary>
+public sealed record ClubTuning
+{
+    /// <summary>Path units either side of the target that also take damage.</summary>
+    public required double SplashRadius { get; init; }
+
+    /// <summary>Fraction of the shot dealt to each secondary. Armor and the damage floor apply per hit.</summary>
+    public required double SplashFraction { get; init; }
+}
+
+/// <summary>Traps and control. Keyword: slow.</summary>
+public sealed record SpadeTuning
+{
+    public required double SlowMultiplier { get; init; }
+    public required double SlowSeconds { get; init; }
+
+    /// <summary>
+    /// False: a second application refreshes the duration rather than compounding the multiplier.
+    /// Stacking would let two Spades approximate a hard stop, which is a different mechanic.
+    /// </summary>
+    public required bool SlowStacks { get; init; }
+}
+
+/// <summary>
+/// Tuned parameters for standing orders. NOT SPECIFIED BY THE DESIGN.
+/// </summary>
+/// <remarks>
+/// Hold's socket threshold and Focus's mode are per-tower board state, not tuning - only
+/// trigger-on-group needs numbers. Standing orders must be "modeled exactly by the resolver or
+/// they do not ship" (design/05-battlefield.md); there is no approximate tier.
+/// </remarks>
+public sealed record StandingOrderTuning
+{
+    public required int TriggerGroupMinEnemies { get; init; }
+    public required double TriggerGroupRadius { get; init; }
+}
+
+/// <summary>Spawn scheduling and Dealer deployment. NOT SPECIFIED BY THE DESIGN.</summary>
+public sealed record WaveTuning
+{
+    /// <summary>Pause between one group finishing its spawns and the next group starting, per lane.</summary>
+    public required double GroupGapSeconds { get; init; }
+
+    /// <summary>How Dealer cards past the Vanguard pick a lane.</summary>
+    public required string DealerLaneAssignment { get; init; }
+
+    /// <summary>
+    /// Whether one Dealer card deploys its enemy row's whole <see cref="EnemyTuning.Count"/>.
+    /// </summary>
+    /// <remarks>
+    /// True: a 3 deploys eight swarm units and a King deploys one siege engine. This is what the
+    /// design's own wording describes - "Swarm pack - many, fragile" and "Fast raiders" against a
+    /// singular "Siege engine" - and it is what makes the upcard readable as a threat shape.
+    /// </remarks>
+    public required bool DealerCardDeploysFullPack { get; init; }
+}
+
+/// <summary>
+/// One encounter's lane stakes and base wave. The Dealer's hand is added to this.
+/// </summary>
+/// <remarks>
+/// NOT SPECIFIED BY THE DESIGN as data - base wave composition exists only as prose in
+/// design/example-wave.md, which is the Milestone 3 acceptance test, so it ships as an encounter.
+/// </remarks>
+public sealed record EncounterTuning
+{
+    public required string Id { get; init; }
+
+    /// <summary>Lane the Dealer's upcard deploys into.</summary>
+    public required int VanguardLane { get; init; }
+
+    /// <summary>One stake per lane, in lane order. Prototype uses bastion and vault only.</summary>
+    public required IReadOnlyList<string> LaneStakes { get; init; }
+
+    /// <summary>Base-wave groups per lane, in lane order then spawn order.</summary>
+    public required IReadOnlyList<IReadOnlyList<SpawnGroupTuning>> BaseWave { get; init; }
+}
+
+/// <summary>
+/// A run of one enemy type spawning at that type's own spacing.
+/// </summary>
+/// <remarks>
+/// <see cref="Count"/> overrides the roster's count, because the roster count is the Dealer pack
+/// size. Lane two of the worked example needs six fast raiders to forecast the 6 damage the doc
+/// states, where the roster says five.
+/// </remarks>
+public sealed record SpawnGroupTuning
+{
+    public required string EnemyId { get; init; }
+    public required int Count { get; init; }
 }
 
 public sealed record RulesTuning

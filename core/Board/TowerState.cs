@@ -1,0 +1,125 @@
+using Bastion.Core.Cards;
+using Bastion.Core.Config;
+
+namespace Bastion.Core.Board;
+
+/// <summary>
+/// A placed tower, as the resolver sees it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Immutable and fully resolved: the resolver reads these fields and never asks how they were
+/// arrived at. Placement, family locking, forced replacement at capacity, and run detection are
+/// Milestone 2 and <i>write</i> these fields.
+/// </para>
+/// <para>
+/// <see cref="FormationMultiplier"/> and <see cref="RunBonus"/> are kept apart rather than folded
+/// into one number on purpose. Milestone 2 can attach without touching the resolver, and per-tower
+/// activity reporting can still explain <i>why</i> a tower hit as hard as it did - which is the
+/// point of reporting it at all.
+/// </para>
+/// </remarks>
+public sealed record TowerState
+{
+    public required Card Card { get; init; }
+    public required Family Family { get; init; }
+    public required SocketRef Socket { get; init; }
+
+    /// <summary>Base power from the card power curve.</summary>
+    public required double BasePower { get; init; }
+
+    /// <summary>Path units either side of the socket this tower can reach.</summary>
+    public required double Range { get; init; }
+
+    /// <summary>The hand's Formation Strength. Persisted towers revert to 1.00 at the wave boundary.</summary>
+    public required double FormationMultiplier { get; init; }
+
+    /// <summary>Fractional run-link bonus: 0.15 for a 2-run, 0.25 for a 3-run, 0 for an unlinked tower.</summary>
+    public required double RunBonus { get; init; }
+
+    /// <summary>Spade traps and Kings ignore half of flat armor (docs/design/06-dealer-and-enemies.md).</summary>
+    public required bool IgnoresHalfArmor { get; init; }
+
+    /// <summary>Face cards occupy the junction without the usual contribution penalty.</summary>
+    public required bool ExemptFromJunctionPenalty { get; init; }
+
+    public required StandingOrder Order { get; init; }
+
+    /// <summary>
+    /// Damage of one shot, before armor and before any junction penalty.
+    /// </summary>
+    /// <remarks>
+    /// NOT SPECIFIED BY THE DESIGN that power means damage per shot - see data/tuning.json's
+    /// resolver comment block. What the design does specify is that this must never be multiplied
+    /// by an engagement fraction to estimate output; sockets are not interchangeable, and three
+    /// units of coverage taken from a 5.0-power King is not three taken from a 1.6-power two.
+    /// Balance comes from resolver output (docs/design/03-march-clock.md).
+    /// </remarks>
+    public double ShotDamage => BasePower * FormationMultiplier * (1.0 + RunBonus);
+
+    /// <summary>
+    /// Builds a tower from a card, applying every rule that turns a card into a battlefield object.
+    /// </summary>
+    /// <remarks>
+    /// These rules live here rather than at a call site so they are impossible to violate through a
+    /// code path, which is what docs/ARCHITECTURE.md asks for family locking specifically.
+    /// </remarks>
+    public static TowerState Place(
+        TuningData tuning,
+        Card card,
+        Family family,
+        SocketRef socket,
+        double formationMultiplier,
+        double runBonus = 0.0,
+        StandingOrder? order = null)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+
+        return new TowerState
+        {
+            Card = card,
+            Family = family,
+            Socket = socket,
+            BasePower = tuning.CardPower.ForValue(card.Value),
+
+            // docs/design/04-cards-as-defenses.md: range 4.0 instead of 3.0 for value-10 cards.
+            Range = card.HasFaceCardRange ? tuning.Geometry.FaceCardRange : tuning.Geometry.DefaultRange,
+
+            FormationMultiplier = formationMultiplier,
+            RunBonus = runBonus,
+            IgnoresHalfArmor = family == Family.Spade || card.IsKing,
+            ExemptFromJunctionPenalty = card.HasFaceCardRange && tuning.Towers.JunctionFaceCardExempt,
+            Order = order ?? StandingOrder.None,
+        };
+    }
+
+    /// <summary>
+    /// Where this tower sits on the given lane's path.
+    /// </summary>
+    /// <remarks>
+    /// A junction tower answers for either lane, at the tuned junction position.
+    /// </remarks>
+    public double PositionOn(TuningData tuning)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+
+        return Socket.IsJunction
+            ? tuning.Towers.JunctionPathPosition
+            : tuning.Geometry.SocketPositions[Socket.SocketIndex];
+    }
+
+    /// <summary>
+    /// Damage this tower lands per shot in a single lane, after the junction penalty.
+    /// </summary>
+    public double ShotDamageInLane(TuningData tuning)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+
+        if (!Socket.IsJunction || ExemptFromJunctionPenalty)
+        {
+            return ShotDamage;
+        }
+
+        return ShotDamage * tuning.Towers.JunctionContributionFraction;
+    }
+}
