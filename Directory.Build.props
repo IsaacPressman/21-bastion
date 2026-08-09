@@ -47,4 +47,29 @@
     <DefineConstants>$(DefineConstants);BASTION_DEBUG</DefineConstants>
   </PropertyGroup>
 
+  <!--
+    Developer tooling that drives the running game: the capture run, which walks a scripted wave and
+    writes a screenshot of every phase. See game/devtools/CaptureRun.cs.
+
+        dotnet build "21 Bastion.sln" -p:BastionDevTools=true
+
+    Compiled out by default, so a node that drives the game by itself cannot exist in a player build.
+
+    DELIBERATELY SEPARATE FROM BastionInstrumentation, which gates the oracle tier. The point of the
+    capture run is to photograph the build a player would get; folding it into the oracle flag would
+    mean every screenshot was of an instrumented build instead. They also differ in kind - the oracle
+    gate withholds information the design forbids showing, while this one merely keeps a dev harness
+    out of a shipping binary.
+
+    Unlike the oracle gate this only ever affects the Godot project, so it does not need to be a
+    command-line global property for correctness - but pass it that way anyway, for symmetry.
+  -->
+  <PropertyGroup>
+    <BastionDevTools Condition="'$(BastionDevTools)' == ''">false</BastionDevTools>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BastionDevTools)' == 'true'">
+    <DefineConstants>$(DefineConstants);BASTION_DEVTOOLS</DefineConstants>
+  </PropertyGroup>
+
 </Project>

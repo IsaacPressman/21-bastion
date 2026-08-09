@@ -134,4 +134,149 @@ public sealed class WaveSessionTests
         Assert.Equal(2, board.Towers.Count(t => Math.Abs(t.FormationMultiplier - 1.00) < 1e-9));
         Assert.Equal(2, board.Towers.Count(t => Math.Abs(t.FormationMultiplier - 1.30) < 1e-9));
     }
+
+    /// <summary>Wave one, settled: a 6-Club at Bastion(1) and an 8-Club at Bastion(2), both now ×1.00.</summary>
+    private static IReadOnlyList<TowerState> AfterFirstWave()
+    {
+        (IReadOnlyList<TowerState> persisted, _) = Begin(Rank.Ten, Rank.Seven, Rank.Six, Rank.Eight)
+            .Place(Family.Club, Bastion(1))
+            .Place(Family.Club, Bastion(2))
+            .Stand()
+            .Lock()
+            .Settle();
+
+        return persisted;
+    }
+
+    /// <summary>Wave two: a Ten up, a Two in the hole, the player's 9 and 9, then the Dealer's draw off 12.</summary>
+    private static readonly Rank[] SecondWaveShoe = [Rank.Ten, Rank.Two, Rank.Nine, Rank.Nine, Rank.Six];
+
+    /// <summary>
+    /// Wave two with its first card placed on <paramref name="socket"/> - which is what persistence
+    /// exists to force: "sockets fill during the second wave, and every card after that forces a
+    /// replacement" (docs/design/05-battlefield.md § Persistence).
+    /// </summary>
+    private static WaveSession SecondWaveOnto(SocketRef socket) =>
+        WaveSession.Begin(Tuning, Encounter, Shoe.FromOrder(SecondWaveShoe), AfterFirstWave())
+            .Place(Family.Spade, socket);
+
+    [Fact]
+    public void A_card_placed_on_a_carried_over_tower_replaces_it()
+    {
+        // The 9-Spade lands on the socket the wave-one 8-Club holds. Forced replacement does not
+        // care which hand put the tower there.
+        BoardState board = SecondWaveOnto(Bastion(2)).Board();
+
+        TowerState replaced = board.Towers.Single(t => t.Socket == Bastion(2));
+        Assert.Equal(Rank.Nine, replaced.Card.Rank);
+        Assert.Equal(Family.Spade, replaced.Family);
+
+        // The evicted tower is gone outright, not shadowed: two towers, not three.
+        Assert.Equal(2, board.Towers.Count);
+        Assert.DoesNotContain(board.Towers, t => t.Card.Rank == Rank.Eight);
+    }
+
+    [Fact]
+    public void A_replaced_carried_over_tower_does_not_come_back_at_the_next_settle()
+    {
+        // The collision used to be resolved backwards here - the replaced tower kept, the card that
+        // replaced it discarded.
+        (IReadOnlyList<TowerState> carried, _) = SecondWaveOnto(Bastion(2))
+            .Place(Family.Club, Vault(0))
+            .Stand()
+            .Lock()
+            .Settle();
+
+        Assert.Equal(Rank.Nine, carried.Single(t => t.Socket == Bastion(2)).Card.Rank);
+        Assert.All(carried, t => Assert.Equal(1.00, t.FormationMultiplier, precision: 6));
+        Assert.Equal(carried.Select(t => t.Socket).Distinct().Count(), carried.Count);
+    }
+
+    [Fact]
+    public void A_busting_card_displaces_no_carried_over_tower()
+    {
+        // The busting card is destroyed and never placed, so it cannot evict anything - including a
+        // tower from an earlier wave sitting on the socket it was aimed at.
+        (IReadOnlyList<TowerState> persisted, _) = Begin(Rank.Ten, Rank.Seven, Rank.Six, Rank.Eight)
+            .Place(Family.Club, Bastion(1))
+            .Place(Family.Club, Bastion(2))
+            .Stand()
+            .Lock()
+            .Settle();
+
+        // Wave two: 10 + 9 is 19, the hit draws a King, and the Dealer still resolves off its 12.
+        WaveSession busted = WaveSession.Begin(
+                Tuning, Encounter,
+                Shoe.FromOrder([Rank.Ten, Rank.Two, Rank.Ten, Rank.Nine, Rank.King, Rank.Six]), persisted)
+            .Place(Family.Club, Vault(0))
+            .Place(Family.Club, Vault(1))
+            .Hit();
+
+        Assert.Equal(WavePhase.BustLocked, busted.Phase);
+        Assert.Equal(Rank.Eight, busted.Board().Towers.Single(t => t.Socket == Bastion(2)).Card.Rank);
+    }
+
+    [Fact]
+    public void The_single_move_can_relocate_a_carried_over_tower()
+    {
+        // The adjustment window is one move for the whole board, not one for this hand's half.
+        WaveSession adjusting = SecondWaveOnto(Vault(0))
+            .Place(Family.Club, Vault(2))
+            .Stand();
+
+        WaveSession moved = adjusting.RelocateTower(Bastion(1), Bastion(0));
+
+        Assert.True(moved.MoveSpent);
+        Assert.Equal(Rank.Six, moved.Board().Towers.Single(t => t.Socket == Bastion(0)).Card.Rank);
+        Assert.DoesNotContain(moved.Board().Towers, t => t.Socket == Bastion(1));
+
+        // Still at ×1.00: moving a carried tower does not re-enlist it into this hand's formation.
+        Assert.Equal(1.00, moved.Board().Towers.Single(t => t.Socket == Bastion(0)).FormationMultiplier, precision: 6);
+
+        // And it is one move for the board: the second is refused.
+        Assert.Throws<InvalidOperationException>(() => moved.RelocateTower(Vault(0), Vault(1)));
+    }
+
+    [Fact]
+    public void A_swap_can_pair_a_carried_over_tower_with_one_from_this_hand()
+    {
+        // Bastion(1) is carried (the wave-one 6-Club); Bastion(2) is this hand's 9-Spade. The two
+        // ends live in different halves of the board, which is the case that used to fail silently.
+        WaveSession swapped = SecondWaveOnto(Bastion(2))
+            .Place(Family.Club, Vault(0))
+            .Stand()
+            .SwapTowers(Bastion(1), Bastion(2));
+
+        Assert.Equal(Rank.Nine, swapped.Board().Towers.Single(t => t.Socket == Bastion(1)).Card.Rank);
+        Assert.Equal(Rank.Six, swapped.Board().Towers.Single(t => t.Socket == Bastion(2)).Card.Rank);
+        Assert.True(swapped.MoveSpent);
+    }
+
+    [Fact]
+    public void A_carried_over_tower_takes_a_standing_order()
+    {
+        WaveSession ordered = SecondWaveOnto(Vault(0))
+            .Place(Family.Club, Vault(2))
+            .Stand()
+            .SetStandingOrder(Bastion(1), new StandingOrder { Focus = FocusMode.PreferArmored });
+
+        Assert.Equal(FocusMode.PreferArmored, ordered.Board().Towers.Single(t => t.Socket == Bastion(1)).Order.Focus);
+
+        // Orders are free, so the relocate move is still in hand.
+        Assert.False(ordered.MoveSpent);
+    }
+
+    [Fact]
+    public void An_adjustment_naming_an_empty_socket_is_refused_rather_than_ignored()
+    {
+        WaveSession adjusting = SecondWaveOnto(Vault(0))
+            .Place(Family.Club, Vault(2))
+            .Stand();
+
+        Assert.Throws<InvalidOperationException>(() => adjusting.SetStandingOrder(Bastion(0), StandingOrder.None));
+        Assert.Throws<InvalidOperationException>(() => adjusting.RelocateTower(Bastion(0), Bastion(1)));
+
+        // Bastion(1) holds a carried tower, so relocating onto it is refused as occupied.
+        Assert.Throws<InvalidOperationException>(() => adjusting.RelocateTower(Bastion(2), Bastion(1)));
+    }
 }

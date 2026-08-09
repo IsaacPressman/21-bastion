@@ -100,4 +100,38 @@ public sealed class BustTests
         Assert.Equal(5.0, burst.Damage, precision: 6);
         Assert.NotEmpty(burst.KilledSpawnIndices);
     }
+
+    [Fact]
+    public void The_burst_records_what_it_did_to_every_unit_it_touched()
+    {
+        OverloadEvent burst = BustedOnAKing().Forecast().Timeline.Events.OfType<OverloadEvent>().Single();
+
+        // It spends exactly its damage, no more: the spill stops when the burst is used up.
+        Assert.True(burst.Hits.Sum(h => h.DamageApplied) <= burst.Damage + 1e-9);
+
+        // Every unit it touched is in the record, kill or not - and the ones it did not kill are
+        // exactly the ones whose damage has to be reconstructable from the timeline alone.
+        Assert.All(burst.Hits, h => Assert.True(h.DamageApplied > 0.0));
+        Assert.Equal(burst.Hits.Where(h => h.Killed).Select(h => h.SpawnIndex), burst.KilledSpawnIndices);
+    }
+
+    [Fact]
+    public void Playback_shows_the_burst_survivor_at_the_health_the_resolver_gave_it()
+    {
+        // A unit the burst damaged without killing must not read as untouched during playback. The
+        // timeline is the only thing playback may consult, so if the partial damage is not recorded
+        // there, the screen contradicts the forecast.
+        FinalForecast forecast = BustedOnAKing().Forecast();
+        OverloadEvent burst = forecast.Timeline.Events.OfType<OverloadEvent>().Single();
+
+        OverloadHit? wounded = burst.Hits.FirstOrDefault(h => !h.Killed);
+        Assert.NotNull(wounded);
+
+        TimelinePlayer player = new(forecast.Timeline, Tuning);
+        EnemyPlaybackState drawn = player.FrameAt(burst.Time).LiveEnemies
+            .Single(e => e.SpawnIndex == wounded!.Value.SpawnIndex);
+
+        Assert.True(drawn.HealthFraction < 1.0,
+            "The burst's survivor was drawn at full health, so playback disagrees with the resolver.");
+    }
 }

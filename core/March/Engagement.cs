@@ -28,10 +28,35 @@ public static class Engagement
     /// </remarks>
     public static double ForSocket(double socketPosition, double range, double entry, double pathLength)
     {
+        (double first, double last) = WindowForSocket(socketPosition, range, entry, pathLength);
+
+        return Math.Max(0.0, last - first);
+    }
+
+    /// <summary>
+    /// The path interval a socket can fire over, as its two endpoints.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Pure geometry: where the window starts and ends on the path, not how much output it yields.
+    /// The presentation draws this on the lane so the player sees <b>which socket windows the next
+    /// march step cuts into</b> - the entry advances, the window's near end moves with it, and the
+    /// shaded slice between the two entries is what the step costs that socket
+    /// (docs/design/09-information-and-ui.md § March cost is shown on the lane, not as a scalar).
+    /// </para>
+    /// <para>
+    /// This is emphatically <b>not</b> the withdrawn effective-output estimate. It returns an
+    /// interval, never power multiplied by a length, so there is nothing here to sum into a fungible
+    /// board number. <see cref="ForSocket"/> is this interval's length, clamped at zero.
+    /// </para>
+    /// </remarks>
+    public static (double First, double Last) WindowForSocket(
+        double socketPosition, double range, double entry, double pathLength)
+    {
         double firstContact = Math.Max(socketPosition - range, entry);
         double lastContact = Math.Min(socketPosition + range, pathLength);
 
-        return Math.Max(0.0, lastContact - firstContact);
+        return (firstContact, lastContact);
     }
 
     /// <summary>

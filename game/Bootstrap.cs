@@ -1,163 +1,190 @@
-using Bastion.Core.Board;
-using Bastion.Core.Cards;
 using Bastion.Core.Config;
 using Bastion.Core.Diagnostics;
-using Bastion.Core.March;
-using Bastion.Core.Resolve;
-using Bastion.Core.Wave;
+using Bastion.Game.Input;
+using Bastion.Game.Presentation;
 using Godot;
 
 namespace Bastion.Game;
 
 /// <summary>
-/// Loads tuning data at startup and reports what the build is configured to do.
+/// The composition root: loads tuning once, builds the presentation tree, and wires it to the core.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Scaffold entry point. Attach to a Node in the main scene; it does nothing but prove the wiring
-/// - the Godot layer references the engine-free core, and the core loads its own data without the
-/// scene tree having any say in it.
+/// Tuning is loaded here and passed down; nothing below reads the file again and nothing reads a
+/// tuning value from a literal. This is deliberately <b>not</b> an Autoload singleton - global
+/// reachability is a service locator, and depending on one from inside a system is what would quietly
+/// break the headless core/game split (CLAUDE.md, docs/ARCHITECTURE.md).
 /// </para>
 /// <para>
-/// Tuning is loaded once here and passed down. Nothing below this point reads the file again, and
-/// nothing anywhere reads a tuning value from a literal.
+/// The whole UI is built in code rather than authored in the scene file. That keeps every view under
+/// version control as C#, keeps the one wiring path in one place, and means the scene is just an entry
+/// node. Views are added first (so their <c>_Ready</c> builds their widgets), then bound to the
+/// controller, and only then is the first wave begun - so the opening <c>StateChanged</c> reaches
+/// every already-connected view.
+/// </para>
+/// <para>
+/// The screen is three anchored regions around a drawn board: a phase banner on top, an information
+/// column down the right, and an action bar along the bottom holding whichever primary action the
+/// current phase offers. Everything anchors rather than sitting at fixed offsets, so the board grows
+/// with the window instead of stranding a panel mid-screen. The regions themselves are declared in
+/// <see cref="Layout"/>, which the board reads too.
 /// </para>
 /// </remarks>
-public partial class Bootstrap : Node
+public partial class Bootstrap : Node2D
 {
-    private TuningData? _tuning;
-
-    /// <summary>The loaded tuning data. Null only if loading failed.</summary>
-    public TuningData? Tuning => _tuning;
+    private const int Seed = 20240808;
+    private const string EncounterId = "example_wave";
 
     public override void _Ready()
     {
+        TuningData tuning;
         try
         {
-            _tuning = TuningLoader.Load(ProjectSettings.GlobalizePath($"res://{TuningLoader.DefaultRelativePath}"));
+            tuning = TuningLoader.Load(ProjectSettings.GlobalizePath($"res://{TuningLoader.DefaultRelativePath}"));
         }
         catch (TuningValidationException ex)
         {
-            // Fail loudly and specifically. Tuning is hand-edited between playtests, and a typo
-            // must not degrade quietly into a wave that resolves oddly three hours later.
+            // Tuning is hand-edited between playtests; a typo must fail loudly, not resolve oddly later.
             GD.PrintErr($"[21 Bastion] Tuning data rejected:\n{ex.Message}");
             return;
         }
 
-        MarchPreset arm = _tuning.ActiveMarchPreset;
+        GD.Print($"[21 Bastion] Design revision {tuning.Revision}, march arm {tuning.March.ActivePreset}");
 
-        GD.Print($"[21 Bastion] Design revision {_tuning.Revision}");
-        GD.Print($"[21 Bastion] March arm {_tuning.March.ActivePreset} - {arm.Label}");
-        GD.Print($"[21 Bastion] Entry after 3/4/5 cards: " +
-                 $"{MarchClock.EntryAfter(_tuning, 3, false):F1} / " +
-                 $"{MarchClock.EntryAfter(_tuning, 4, false):F1} / " +
-                 $"{MarchClock.EntryAfter(_tuning, 5, false):F1}" +
-                 $"  (clamped at {_tuning.March.EntryClampMax:F1})");
-
-        ReportForecast(_tuning);
-        ReportWaveLoop(_tuning);
-
-        // Copied to a local so the branch is not folded away as unreachable at compile time.
+        // Copied to a local so the branch is not folded away as unreachable in a non-instrumented build.
         bool instrumented = DebugGate.IsEnabled;
-
         if (instrumented)
         {
-            // Never in a player build. See docs/design/09-information-and-ui.md.
             GD.Print("[21 Bastion] Oracle-tier instrumentation is COMPILED IN. Not a player build.");
         }
+
+        BuildAndWire(tuning);
+    }
+
+    private void BuildAndWire(TuningData tuning)
+    {
+        var controller = new WaveController { Name = "WaveController" };
+        AddChild(controller);
+
+        var interaction = new BoardInteraction(controller);
+
+        // The spatial battlefield draws in world space, beneath the UI layer.
+        var battlefield = new BattlefieldView
+        {
+            Name = "Battlefield",
+            LabelFont = BastionTheme.UiFont,
+            MonoFont = BastionTheme.MonoFont,
+        };
+        AddChild(battlefield);
+
+        // Panels live on a CanvasLayer so they float above the board regardless of any camera.
+        var ui = new CanvasLayer { Name = "UI" };
+        AddChild(ui);
+
+        // One themed root Control: Godot propagates a theme down the Control tree, and a CanvasLayer
+        // is not part of one. MouseFilter.Ignore is load-bearing - a full-rect Control defaults to
+        // swallowing mouse input, which would leave the board unclickable.
+        var root = new Control { Name = "Root", Theme = BastionTheme.Create(), MouseFilter = Control.MouseFilterEnum.Ignore };
+        root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        ui.AddChild(root);
+
+        PhaseHeader header = BuildHeader(root);
+        (BattlefieldPanel battlefieldPanel, HandPanel handPanel, PostWaveView postWave) = BuildInfoColumn(root);
+        (PhaseControls phaseControls, CombatPlaybackView playback) = BuildActionBar(root);
+
+        // Bind after the widgets exist (their _Ready has run on AddChild) and before the first wave, so
+        // the opening StateChanged reaches every connected view.
+        battlefield.Bind(controller, interaction);
+        header.Bind(controller);
+        battlefieldPanel.Bind(controller);
+        handPanel.Bind(controller);
+        postWave.Bind(controller);
+        phaseControls.Bind(controller, interaction);
+        playback.Bind(controller, battlefield, postWave);
+
+        controller.Configure(tuning, tuning.Encounter(EncounterId), Seed);
+
+#if BASTION_DEVTOOLS
+        // Absent from a normal build, and inert in a dev build unless --capture is passed. The
+        // composition root is the only place holding the wired-up nodes it needs.
+        DevTools.CaptureRun.AttachIfRequested(this, controller, battlefield);
+#endif
+    }
+
+    private static PhaseHeader BuildHeader(Control root)
+    {
+        var header = new PhaseHeader { Name = "PhaseHeader" };
+        header.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+        header.OffsetBottom = Layout.HeaderHeight;
+        root.AddChild(header);
+
+        return header;
+    }
+
+    private static (BattlefieldPanel, HandPanel, PostWaveView) BuildInfoColumn(Control root)
+    {
+        var scroll = new ScrollContainer { Name = "InfoColumn" };
+        scroll.SetAnchorsPreset(Control.LayoutPreset.RightWide);
+        scroll.OffsetLeft = -Layout.RightColumnWidth;
+        scroll.OffsetTop = Layout.HeaderHeight;
+        scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled;
+        root.AddChild(scroll);
+
+        // The gutter goes on a MarginContainer inside the scroll rather than on each panel, so the
+        // cards stay aligned with one another and with the scrollbar.
+        var margins = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        margins.AddThemeConstantOverride("margin_left", 4);
+        margins.AddThemeConstantOverride("margin_right", 14);
+        margins.AddThemeConstantOverride("margin_top", 10);
+        margins.AddThemeConstantOverride("margin_bottom", 10);
+        scroll.AddChild(margins);
+
+        var column = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        column.AddThemeConstantOverride("separation", 10);
+        margins.AddChild(column);
+
+        var battlefieldPanel = new BattlefieldPanel { Name = "BattlefieldPanel" };
+        var handPanel = new HandPanel { Name = "HandPanel" };
+        var postWave = new PostWaveView { Name = "PostWave" };
+
+        column.AddChild(battlefieldPanel);
+        column.AddChild(handPanel);
+        column.AddChild(postWave);
+
+        return (battlefieldPanel, handPanel, postWave);
     }
 
     /// <summary>
-    /// Resolves the worked example once and prints both forecasts.
+    /// The bottom bar. Both occupants fill it and only one is visible at a time - decision controls
+    /// during the draw and the adjustment window, playback transport during combat - so the primary
+    /// action always sits in the same place on screen.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Still a smoke test, not gameplay. It exists to prove the one link the headless suites cannot
-    /// check: that the Godot layer reaches the engine-free resolver and runs a full wave through
-    /// it. There is no board yet - Milestone 2 builds one by playing a hand.
-    /// </para>
-    /// <para>
-    /// Note that the two figures are printed under different headings and are never added together
-    /// or reconciled. They answer different questions, and a UI that merges them is how trust in
-    /// the forecast is lost. See docs/design/05-battlefield.md.
-    /// </para>
-    /// </remarks>
-    private static void ReportForecast(TuningData tuning)
+    private static (PhaseControls, CombatPlaybackView) BuildActionBar(Control root)
     {
-        EncounterTuning encounter = tuning.Encounter("example_wave");
-        double entry = tuning.Geometry.DefaultEntry;
-        double threshold = tuning.Rules.OpenHeldThresholdFraction;
+        var bar = new Panel { Name = "ActionBar" };
+        bar.SetAnchorsPreset(Control.LayoutPreset.BottomWide);
+        bar.OffsetTop = -Layout.ActionBarHeight;
+        bar.OffsetRight = -Layout.RightColumnWidth;
+        root.AddChild(bar);
 
-        // A stand-in board: two Clubs in the Bastion lane, one Spade in the Vault lane, at the
-        // worked example's x1.30. Placement is Milestone 2.
-        BoardState board = BoardState.Create(tuning,
-        [
-            TowerState.Place(tuning, new Card(Rank.Six), Family.Club, SocketRef.InLane(0, 1), 1.30),
-            TowerState.Place(tuning, new Card(Rank.Eight), Family.Club, SocketRef.InLane(0, 2), 1.30),
-            TowerState.Place(tuning, new Card(Rank.Four), Family.Spade, SocketRef.InLane(1, 0), 1.30),
-        ], entry);
+        // A Panel is not a container, so its theme content margins do not reach children: inset by hand.
+        var stack = new Control { Name = "Stack", MouseFilter = Control.MouseFilterEnum.Ignore };
+        stack.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        stack.OffsetLeft = 16f;
+        stack.OffsetRight = -16f;
+        stack.OffsetTop = 12f;
+        stack.OffsetBottom = -12f;
+        bar.AddChild(stack);
 
-        VisibleThreat threat = Resolver.ResolveRevealed(
-            tuning, encounter, board,
-            ArmyBuilder.Revealed(tuning, encounter, new Card(Rank.Ten), entry));
+        var phaseControls = new PhaseControls { Name = "PhaseControls" };
+        phaseControls.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        stack.AddChild(phaseControls);
 
-        FinalForecast forecast = Resolver.ResolveComplete(
-            tuning, encounter, board,
-            ArmyBuilder.Complete(tuning, encounter,
-                [new Card(Rank.Ten), new Card(Rank.Six), new Card(Rank.Seven)], entry));
+        var playback = new CombatPlaybackView { Name = "Playback" };
+        playback.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        stack.AddChild(playback);
 
-        GD.Print("[21 Bastion] Visible Threat (revealed force only - NOT a prediction of the wave):");
-        foreach (LaneOutcome lane in threat.Lanes)
-        {
-            GD.Print($"[21 Bastion]   Lane {lane.LaneIndex} ({lane.Stake}): " +
-                     $"{lane.CoverageLabel(threshold)}, {lane.PredictedDamage} of {lane.EmptyLaneDamage}");
-        }
-
-        GD.Print("[21 Bastion] Final Forecast (the combat contract):");
-        foreach (LaneOutcome lane in forecast.Lanes)
-        {
-            GD.Print($"[21 Bastion]   Lane {lane.LaneIndex} ({lane.Stake}): " +
-                     $"{lane.CoverageLabel(threshold)}, {lane.PredictedDamage} of {lane.EmptyLaneDamage}, " +
-                     $"prevented {lane.DamagePrevented}");
-        }
-
-        GD.Print($"[21 Bastion] Wave resolves in {forecast.Timeline.DurationSeconds:F1}s " +
-                 $"over {forecast.Timeline.Events.Count} events " +
-                 $"(target {tuning.Combat.WaveResolutionSecondsMin:F0}-{tuning.Combat.WaveResolutionSecondsMax:F0}s)");
-    }
-
-    /// <summary>
-    /// Drives a short wave through the Milestone 3 state machine and prints its phases.
-    /// </summary>
-    /// <remarks>
-    /// Still a smoke test, not gameplay: it proves the Godot layer reaches the engine-free
-    /// <see cref="WaveSession"/> and can walk it from the opening deal to a locked, forecast wave. The
-    /// cards come from a seeded shoe, so the printed hand varies with the seed; only the placement
-    /// sockets are scripted.
-    /// </remarks>
-    private static void ReportWaveLoop(TuningData tuning)
-    {
-        EncounterTuning encounter = tuning.Encounter("example_wave");
-
-        WaveSession session = WaveSession.Begin(tuning, encounter, Shoe.Create(tuning, seed: 20240808))
-            .Place(Family.Club, SocketRef.InLane(0, 1))
-            .Place(Family.Club, SocketRef.InLane(0, 2));
-
-        GD.Print($"[21 Bastion] Wave loop: Vanguard {session.Vanguard}, opening hand {session.Hand.Total} " +
-                 $"(×{session.FormationMultiplier:F2}), phase {session.Phase}");
-
-        // The Visible Threat during the draw - the revealed force only, never a wave prediction.
-        double threshold = tuning.Rules.OpenHeldThresholdFraction;
-        LaneOutcome vaultThreat = session.VisibleThreatNow().Lanes[1];
-        GD.Print($"[21 Bastion]   Visible Threat, Vault lane: {vaultThreat.CoverageLabel(threshold)}, {vaultThreat.PredictedDamage}");
-
-        WaveSession locked = session.Stand().Lock();
-        GD.Print($"[21 Bastion]   Stood; Dealer deployed {locked.DealerCards!.Count} cards; phase {locked.Phase}");
-
-        foreach (LaneOutcome lane in locked.Forecast().Lanes)
-        {
-            GD.Print($"[21 Bastion]   Final Forecast, lane {lane.LaneIndex} ({lane.Stake}): " +
-                     $"{lane.CoverageLabel(threshold)}, {lane.PredictedDamage} of {lane.EmptyLaneDamage}");
-        }
+        return (phaseControls, playback);
     }
 }

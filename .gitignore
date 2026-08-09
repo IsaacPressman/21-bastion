@@ -25,3 +25,10 @@ TestResults/
 
 # Local tuning overrides - never commit a machine-specific curve
 data/*.local.json
+
+# Screenshots from the capture run (game/devtools/CaptureRun.cs). Regenerate, don't commit.
+.captures/
+
+# The Godot editor backs the project file up here before rewriting it - see the TargetFramework
+# comment in "21 Bastion.csproj". It reappears on its own; there is no point tracking or deleting it.
+*.csproj.old

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cklwgmn13es0f"
+
+[deps]
+
+files=["res://telemetry/deep-placement-runs.towers.translation", "res://telemetry/deep-placement-runs.sockets.translation", "res://telemetry/deep-placement-runs.shape.translation", "res://telemetry/deep-placement-runs.entry.translation", "res://telemetry/deep-placement-runs.meanDepth.translation", "res://telemetry/deep-placement-runs.lane0Leak.translation", "res://telemetry/deep-placement-runs.lane1Leak.translation", "res://telemetry/deep-placement-runs.totalLeak.translation"]
+
+source_file="res://telemetry/deep-placement-runs.csv"
+dest_files=["res://telemetry/deep-placement-runs.towers.translation", "res://telemetry/deep-placement-runs.sockets.translation", "res://telemetry/deep-placement-runs.shape.translation", "res://telemetry/deep-placement-runs.entry.translation", "res://telemetry/deep-placement-runs.meanDepth.translation", "res://telemetry/deep-placement-runs.lane0Leak.translation", "res://telemetry/deep-placement-runs.lane1Leak.translation", "res://telemetry/deep-placement-runs.totalLeak.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

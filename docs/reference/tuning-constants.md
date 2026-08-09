@@ -301,8 +301,21 @@ check against.** Treat a disagreement here as a decision to revisit, not a bug.
 
 | Constant | Value | Reasoning |
 |---|---|---|
-| Ace Bastion socket | **junction if free, else the deepest empty lane socket** | A King-class anchor has face-card range and the junction exemption, so at the junction it covers both lanes at full power — the natural home for a free anchor. A natural is two cards, so a socket is always free. |
+| Ace Bastion socket | **junction if free, else the deepest empty lane socket** | A King-class anchor has face-card range and the junction exemption, so at the junction it covers both lanes at full power — the natural home for a free anchor. |
 | Ace Bastion family | **Club** | A neutral placeholder. The anchor has no design-stated suit keyword; Club is a first pass. Revisit in Milestone 3 with bust, stakes, and Overload, where the anchor's combat behaviour first matters. |
+| Ace Bastion on a full board | **no anchor** | *Corrected at Milestone 4.* The original reasoning here was "a natural is two cards, so a socket is always free" — false once towers persist: two fresh towers plus five carried ones fill all seven sockets from the third wave on. A natural on a full board now simply goes unanchored, because the anchor is a bonus and the alternative is destroying a tower the player never chose to replace. |
+
+### Persisted towers as board objects
+
+> **Resolved at Milestone 4.** `../design/05-battlefield.md` § The adjustment window lists *"Do persisted
+> towers move on equal terms?"* among the five questions the one-global-move rule was meant to settle by
+> construction. It settles the other four; this one it does not touch, so it is answered here.
+
+| Question | Answer | Reasoning |
+|---|---|---|
+| Does a placement onto a persisted tower's socket replace it? | **yes** | § Persistence states the purpose outright: "sockets fill during the second wave, and every card after that forces a replacement." A carried tower that could not be replaced would make persistence a lockout rather than a source of scarcity. |
+| Can the single adjustment move relocate or swap a persisted tower? | **yes, on equal terms** | The rule is "relocate one tower one socket," unqualified as to whose. By the third wave most of the board is carried, so a window that could not touch them would be a window over almost nothing. |
+| Can a persisted tower take a standing order? | **yes, still free** | An order is a pre-committed conditional about how a tower fights *this* wave, not a property of the hand that placed it — and combat has no live input, so the alternative is a board of towers with no tactics. |
 
 ### Suit keywords
 

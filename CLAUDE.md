@@ -55,7 +55,42 @@ dotnet build "21 Bastion.sln" -p:BastionInstrumentation=true
 dotnet test tests/Bastion.Core.Tests.csproj -p:BastionInstrumentation=true
 ```
 
-Godot is not on PATH, so it cannot be launched from here — open the project in the editor GUI.
+### Running Godot
+
+Not on PATH, but present at:
+
+```
+C:\Users\iwpre\Downloads\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe
+```
+
+Use the `_console` variant from a terminal — the plain one detaches and writes no stdout. It must be the
+**mono** build; the standard build has no C# support.
+
+```bash
+# Smoke test: loads tuning, builds the whole UI, runs the opening StateChanged, quits. No window.
+godot --headless --path . --quit-after 120
+```
+
+### Capture run — screenshots of every phase
+
+**The UI cannot be reviewed by reading it.** Anchored regions, wrapped flow containers, and hand-drawn
+geometry only resolve at a real viewport size. `game/devtools/CaptureRun.cs` walks a scripted wave and
+writes a PNG per phase, and first checks that a synthesised click on the board actually places a tower —
+which is the part that has already caught a hit test silently reading the OS cursor instead of the event.
+
+```bash
+dotnet build "21 Bastion.sln" -p:BastionDevTools=true
+godot --path . -- --capture                      # writes .captures/ (gitignored)
+godot --path . -- --capture --capture-out <dir>
+```
+
+Opens a window for a few seconds — screenshots need a real renderer, so `--headless` cannot produce them.
+Exits non-zero if the click check or any write fails. Flags go after `--` so they cannot collide with
+Godot's own.
+
+**Gated by `BastionDevTools`, deliberately separate from `BastionInstrumentation`** — the point is to
+photograph the build a player would get, and folding it into the oracle flag would mean every screenshot
+showed an instrumented build. Compiled out by default, and inert without `--capture` even when compiled in.
 
 **Scene wiring is done.** `scenes/root.tscn` carries `game/Bootstrap.cs` and is set as `run/main_scene`.
 Running prints the design revision, the active march arm, and its entry positions — a smoke test that the

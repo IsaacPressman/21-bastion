@@ -73,6 +73,9 @@ public sealed record DeathEvent : TimelineEvent
     public required SocketRef KilledBy { get; init; }
 }
 
+/// <summary>What the burst did to one unit: what it lost, and whether that finished it.</summary>
+public readonly record struct OverloadHit(int SpawnIndex, double DamageApplied, bool Killed);
+
 /// <summary>
 /// A bust's Overload struck this lane. Emitted once, at the opening tick, before towers fire.
 /// </summary>
@@ -86,8 +89,36 @@ public sealed record OverloadEvent : TimelineEvent
     /// <summary>The busting card's base power, spent on this lane.</summary>
     public required double Damage { get; init; }
 
+    /// <summary>
+    /// What the burst actually did to each unit it touched, in spawn order.
+    /// </summary>
+    /// <remarks>
+    /// Per unit, not just a roster of the dead. The burst spills a kill's remainder onto the next
+    /// unit, so the one it stops short of survives with reduced health - and if that damage is not
+    /// recorded here it exists nowhere in the timeline, leaving anything reading the recording to
+    /// draw a unit the resolver has already hurt at full health. That is precisely the drift the
+    /// timeline exists to make impossible.
+    /// </remarks>
+    public required IReadOnlyList<OverloadHit> Hits { get; init; }
+
     /// <summary>Units the burst destroyed, in spawn order.</summary>
-    public required IReadOnlyList<int> KilledSpawnIndices { get; init; }
+    public IReadOnlyList<int> KilledSpawnIndices => [.. Hits.Where(h => h.Killed).Select(h => h.SpawnIndex)];
+
+    /// <summary>
+    /// Structural equality, including the hit list.
+    /// </summary>
+    /// <remarks>
+    /// Same reason as <see cref="WaveTimeline.Equals(WaveTimeline?)"/>: the synthesised version
+    /// compares <see cref="Hits"/> by reference, so two runs of the same bust would never compare
+    /// equal and the determinism check over the timeline could not fail.
+    /// </remarks>
+    public bool Equals(OverloadEvent? other) =>
+        other is not null
+        && base.Equals(other)
+        && Damage.Equals(other.Damage)
+        && Hits.SequenceEqual(other.Hits);
+
+    public override int GetHashCode() => HashCode.Combine(base.GetHashCode(), Damage, Hits.Count);
 }
 
 /// <summary>A unit reached the end of the path.</summary>

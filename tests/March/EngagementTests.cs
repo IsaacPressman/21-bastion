@@ -94,6 +94,32 @@ public sealed class EngagementTests
         Assert.Equal(0.0, Engagement.Total([], 3.0, 0.0, 12.0), precision: 6);
     }
 
+    [Theory]
+    [InlineData(3.0, 3.0, 0.0, 0.0, 6.0)]    // front socket, entry 0: 0 to 6
+    [InlineData(9.0, 3.0, 0.0, 6.0, 12.0)]   // rear socket, entry 0: 6 to 12
+    [InlineData(9.0, 4.0, 0.0, 5.0, 12.0)]   // face range clipped at the path end, not 13
+    [InlineData(3.0, 3.0, 4.0, 4.0, 6.0)]    // entry advanced past the socket's near edge
+    public void Window_endpoints_are_the_engagement_interval(
+        double socket, double range, double entry, double first, double last)
+    {
+        (double gotFirst, double gotLast) = Engagement.WindowForSocket(socket, range, entry, 12.0);
+
+        Assert.Equal(first, gotFirst, precision: 6);
+        Assert.Equal(last, gotLast, precision: 6);
+    }
+
+    [Theory]
+    [InlineData(3.0, 3.0, 0.0)]
+    [InlineData(9.0, 3.0, 4.0)]
+    [InlineData(3.0, 3.0, 9.0)]   // socket fully behind entry: window collapses, length clamps to 0
+    public void Window_length_agrees_with_ForSocket(double socket, double range, double entry)
+    {
+        (double first, double last) = Engagement.WindowForSocket(socket, range, entry, 12.0);
+        double byLength = Engagement.ForSocket(socket, range, entry, 12.0);
+
+        Assert.Equal(byLength, Math.Max(0.0, last - first), precision: 6);
+    }
+
     [Fact]
     public void A_socket_fully_behind_the_entry_point_contributes_nothing()
     {

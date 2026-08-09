@@ -84,43 +84,41 @@ public sealed class WaveDraft
     }
 
     /// <summary>
-    /// Moves the tower at <paramref name="from"/> to the empty socket <paramref name="to"/>, keeping
-    /// its rank, family, and order. The adjustment window's relocate half.
+    /// Moves this draft's tower at <paramref name="from"/> to <paramref name="to"/>, keeping its
+    /// rank, family, and order. The adjustment window's relocate half.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Family never changes here - only position - so family locking is preserved by construction.
     /// The move re-derives the whole board through <see cref="BuildBoard"/>, so a relocation that
-    /// forms or breaks a run is reflected in the run bonuses, not patched onto a fixed board. Socket
-    /// adjacency (one socket, or a swap of two adjacent towers) is the caller's rule to enforce; this
-    /// only refuses a move to an occupied socket or from an empty one.
+    /// forms or breaks a run is reflected in the run bonuses, not patched onto a fixed board.
+    /// </para>
+    /// <para>
+    /// <b>Operates on this draft's half of the board only, and is deliberately tolerant:</b> if the
+    /// draft holds no tower at <paramref name="from"/> the relocation belongs to a carried-over
+    /// tower and this returns unchanged. Adjacency, occupancy, and the single-move rule are checked
+    /// against the <i>whole</i> board - persisted towers included - in <c>WaveSession</c>, which is
+    /// the only caller and the only place that can see both halves.
+    /// </para>
     /// </remarks>
-    public WaveDraft WithTowerMoved(SocketRef from, SocketRef to)
+    public WaveDraft WithSocketReassigned(SocketRef from, SocketRef to)
     {
-        if (_placements.All(p => p.Socket != from))
-        {
-            throw new InvalidOperationException($"There is no tower at {from} to relocate.");
-        }
-
-        if (_placements.Any(p => p.Socket == to))
-        {
-            throw new InvalidOperationException($"Socket {to} is occupied; a relocation needs an empty socket.");
-        }
-
         List<Placement> moved = [.. _placements.Select(p => p.Socket == from ? p with { Socket = to } : p)];
         return new WaveDraft(Hand, moved);
     }
 
     /// <summary>
-    /// Swaps the positions of the two towers at <paramref name="a"/> and <paramref name="b"/>. The
+    /// Exchanges whichever of <paramref name="a"/> and <paramref name="b"/> this draft holds. The
     /// adjustment window's swap half.
     /// </summary>
-    public WaveDraft WithTowersSwapped(SocketRef a, SocketRef b)
+    /// <remarks>
+    /// Tolerant for the same reason as <see cref="WithSocketReassigned"/>, and here it is load-bearing
+    /// rather than defensive: a swap may pair a current-hand tower with a carried-over one, and the
+    /// two live in different lists. Each list remaps only its own end, which composes to the whole
+    /// exchange without either half needing to know about the other.
+    /// </remarks>
+    public WaveDraft WithSocketsExchanged(SocketRef a, SocketRef b)
     {
-        if (_placements.All(p => p.Socket != a) || _placements.All(p => p.Socket != b))
-        {
-            throw new InvalidOperationException($"A swap needs a tower at both {a} and {b}.");
-        }
-
         List<Placement> swapped =
         [
             .. _placements.Select(p =>
@@ -162,11 +160,20 @@ public sealed class WaveDraft
     /// Ace Bastion on a natural, entering where the March Clock says.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The one place a <see cref="BoardState"/> is produced, so the resolver has exactly one code
     /// path feeding it. The same call serves the provisional board during the draw and the final
     /// board at stand - the only difference is that the hand has more cards.
+    /// </para>
+    /// <para>
+    /// <paramref name="reservedSockets"/> are sockets held by towers outside this draft - carried-over
+    /// towers from earlier waves. The draft cannot place into them (forced replacement evicts them at
+    /// placement instead, in <c>WaveSession</c>), but the Ace Bastion picks its own socket, so it has
+    /// to be told which ones are already spoken for or a natural in a later wave would seat it on top
+    /// of a persisted tower.
+    /// </para>
     /// </remarks>
-    public BoardState BuildBoard(TuningData tuning)
+    public BoardState BuildBoard(TuningData tuning, IReadOnlyCollection<SocketRef>? reservedSockets = null)
     {
         ArgumentNullException.ThrowIfNull(tuning);
 
@@ -188,9 +195,9 @@ public sealed class WaveDraft
                 r.Placement.Order)),
         ];
 
-        if (Hand.IsNaturalBlackjack)
+        if (Hand.IsNaturalBlackjack && AceBastion(tuning, multiplier, towers, reservedSockets ?? []) is { } anchor)
         {
-            towers.Add(AceBastion(tuning, multiplier, towers));
+            towers.Add(anchor);
         }
 
         return BoardState.Create(tuning, towers, Entry(tuning));
@@ -228,16 +235,33 @@ public sealed class WaveDraft
     /// multiplier (docs/design/02-blackjack-and-formation.md § Natural blackjack).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// NOT SPECIFIED BY THE DESIGN: which socket it takes and which family it wears. First pass -
     /// the junction if free, else the deepest empty lane socket, because a King-class anchor has
     /// face-card range and the junction exemption, so it covers both lanes at full power; and Club,
     /// as a neutral placeholder. Flagged in docs/reference/tuning-constants.md § Invented, to revisit
     /// in Milestone 3 with the rest of bust and stakes.
+    /// </para>
+    /// <para>
+    /// ALSO NOT SPECIFIED: what a natural earns when every socket is already taken, which persistence
+    /// makes reachable from the third wave on - two fresh towers plus five carried ones fill the
+    /// board. Returns null and the natural simply goes unanchored, because the anchor is a bonus and
+    /// the alternative is destroying a tower the player never chose to replace. Revisit with the rest
+    /// of the anchor's rules.
+    /// </para>
     /// </remarks>
-    private TowerState AceBastion(TuningData tuning, double handMultiplier, IEnumerable<TowerState> placed)
+    private TowerState? AceBastion(
+        TuningData tuning,
+        double handMultiplier,
+        IEnumerable<TowerState> placed,
+        IReadOnlyCollection<SocketRef> reservedSockets)
     {
-        HashSet<SocketRef> occupied = [.. placed.Select(t => t.Socket)];
-        SocketRef socket = FreeAnchorSocket(tuning, occupied);
+        HashSet<SocketRef> occupied = [.. placed.Select(t => t.Socket), .. reservedSockets];
+
+        if (FreeAnchorSocket(tuning, occupied) is not { } socket)
+        {
+            return null;
+        }
 
         return new TowerState
         {
@@ -254,8 +278,8 @@ public sealed class WaveDraft
         };
     }
 
-    /// <summary>Junction first, then the deepest empty lane socket. A natural has only two towers, so one is free.</summary>
-    private static SocketRef FreeAnchorSocket(TuningData tuning, HashSet<SocketRef> occupied)
+    /// <summary>Junction first, then the deepest empty lane socket, or null if the board is full.</summary>
+    private static SocketRef? FreeAnchorSocket(TuningData tuning, HashSet<SocketRef> occupied)
     {
         if (!occupied.Contains(SocketRef.Junction))
         {
@@ -274,6 +298,6 @@ public sealed class WaveDraft
             }
         }
 
-        throw new InvalidOperationException("No free socket for the Ace Bastion, which a natural should always have.");
+        return null;
     }
 }

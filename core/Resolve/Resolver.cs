@@ -250,7 +250,7 @@ public static class Resolver
             {
                 overloadSpent = true;
                 double remaining = openingBurst;
-                List<int> killed = [];
+                List<OverloadHit> hits = [];
 
                 foreach (LiveEnemy enemy in active.OrderBy(e => e.SpawnIndex))
                 {
@@ -266,8 +266,11 @@ public static class Resolver
                     if (enemy.Health <= 0)
                     {
                         enemy.Alive = false;
-                        killed.Add(enemy.SpawnIndex);
                     }
+
+                    // Every unit touched, not only the dead: the unit the spill stops short of walks
+                    // away damaged, and that has to be in the record for playback to draw it right.
+                    hits.Add(new OverloadHit(enemy.SpawnIndex, dealt, !enemy.Alive));
                 }
 
                 events.Add(new OverloadEvent
@@ -276,7 +279,7 @@ public static class Resolver
                     Time = time,
                     LaneIndex = lane,
                     Damage = openingBurst,
-                    KilledSpawnIndices = killed,
+                    Hits = hits,
                 });
 
                 active.RemoveAll(e => !e.Alive);

@@ -43,6 +43,34 @@ public sealed class Shoe
     /// <summary>How many times this shoe has been reshuffled. Zero for a fresh shoe.</summary>
     public int Generation => _generation;
 
+    /// <summary>
+    /// How many of each rank remain, for the rank-composition display.
+    /// </summary>
+    /// <remarks>
+    /// Counts only, deliberately <b>not</b> the remaining order: the information rules show the
+    /// player what is left in the pile so risk is a reading skill, but the draw sequence stays hidden
+    /// (docs/design/09-information-and-ui.md). Every rank is present as a key, so a rank drawn to
+    /// exhaustion reads as an explicit zero rather than a gap. The UI marks which of these ranks would
+    /// bust the current hand via <c>HandState.Hit(rank).IsBust</c> - that is a hand computation, not a
+    /// shoe one, and there is no percentage anywhere.
+    /// </remarks>
+    public IReadOnlyDictionary<Rank, int> RemainingComposition()
+    {
+        Dictionary<Rank, int> counts = new();
+
+        foreach (Rank rank in Enum.GetValues<Rank>())
+        {
+            counts[rank] = 0;
+        }
+
+        foreach (Rank rank in _remaining)
+        {
+            counts[rank]++;
+        }
+
+        return counts;
+    }
+
     /// <summary>A full, shuffled shoe seeded for reproducibility.</summary>
     public static Shoe Create(TuningData tuning, int seed)
     {

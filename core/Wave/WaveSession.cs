@@ -120,6 +120,14 @@ public sealed record WaveSession
     /// <summary>
     /// Places the pending card, committing its family and socket. Family is now locked for the wave.
     /// </summary>
+    /// <remarks>
+    /// Forced replacement reaches carried-over towers too. Persistence exists precisely so that
+    /// "sockets fill during the second wave, and every card after that forces a replacement"
+    /// (docs/design/05-battlefield.md § Persistence), so a placement onto a persisted tower's socket
+    /// evicts it exactly as it would evict one of this hand's - the removed tower's power, links, and
+    /// multiplier go with it. <see cref="WaveDraft"/> can only see its own half of the board, so the
+    /// eviction happens here, where both halves are visible.
+    /// </remarks>
     public WaveSession Place(Family family, SocketRef socket)
     {
         Require(Phase == WavePhase.AwaitingPlacement, "There is no card waiting to be placed.");
@@ -127,9 +135,16 @@ public sealed record WaveSession
         Rank rank = PendingRanks[0];
         IReadOnlyList<Rank> rest = [.. PendingRanks.Skip(1)];
 
+        // A busting card is destroyed and never placed, so it displaces nothing - the same rule
+        // WaveDraft.Place applies to the draft's own towers, held to here for persisted ones.
+        IReadOnlyList<TowerState> remaining = Draft.Hand.Hit(rank).IsBust
+            ? Persisted
+            : [.. Persisted.Where(t => t.Socket != socket)];
+
         return this with
         {
             Draft = Draft.Place(rank, family, socket),
+            Persisted = remaining,
             PendingRanks = rest,
             Phase = rest.Count > 0 ? WavePhase.AwaitingPlacement : WavePhase.DrawDecision,
         };
@@ -176,37 +191,78 @@ public sealed record WaveSession
     /// <summary>
     /// Relocates a tower one socket, spending the wave's single adjustment move. Family is unchanged.
     /// </summary>
+    /// <remarks>
+    /// Carried-over towers move on equal terms with this hand's. The rule is "one move total -
+    /// relocate one tower one socket, or swap two adjacent towers", unqualified as to whose tower
+    /// (docs/design/05-battlefield.md § The adjustment window). By the third wave most of the board
+    /// is persisted, so a window that could not touch them would be a window over almost nothing.
+    /// </remarks>
     public WaveSession RelocateTower(SocketRef from, SocketRef to)
     {
         Require(Phase == WavePhase.AdjustmentWindow, "Relocation is only offered in the adjustment window.");
         Require(!MoveSpent, "The adjustment window is one move for the whole board, and it is already spent.");
         Require(AreAdjacent(from, to), "A relocation moves a tower one socket.");
+        Require(IsOccupied(from), $"There is no tower at {from} to relocate.");
+        Require(!IsOccupied(to), $"Socket {to} is occupied; a relocation needs an empty socket.");
 
-        return this with { Draft = Draft.WithTowerMoved(from, to), MoveSpent = true };
+        // Whichever half holds it moves it; the other is left alone by construction.
+        return this with
+        {
+            Persisted = [.. Persisted.Select(t => t.Socket == from ? t with { Socket = to } : t)],
+            Draft = Draft.WithSocketReassigned(from, to),
+            MoveSpent = true,
+        };
     }
 
     /// <summary>
     /// Swaps two adjacent towers, spending the wave's single adjustment move.
     /// </summary>
+    /// <remarks>
+    /// Either end may be a carried-over tower, including one of each: each half of the board remaps
+    /// only the socket it holds, which composes to the whole exchange.
+    /// </remarks>
     public WaveSession SwapTowers(SocketRef a, SocketRef b)
     {
         Require(Phase == WavePhase.AdjustmentWindow, "A swap is only offered in the adjustment window.");
         Require(Tuning.Rules.AdjustmentAllowsAdjacentSwap, "This tuning does not allow the adjacent swap.");
         Require(!MoveSpent, "The adjustment window is one move for the whole board, and it is already spent.");
         Require(AreAdjacent(a, b), "A swap exchanges two adjacent towers.");
+        Require(IsOccupied(a) && IsOccupied(b), $"A swap needs a tower at both {a} and {b}.");
 
-        return this with { Draft = Draft.WithTowersSwapped(a, b), MoveSpent = true };
+        return this with
+        {
+            Persisted =
+            [
+                .. Persisted.Select(t =>
+                    t.Socket == a ? t with { Socket = b }
+                    : t.Socket == b ? t with { Socket = a }
+                    : t),
+            ],
+            Draft = Draft.WithSocketsExchanged(a, b),
+            MoveSpent = true,
+        };
     }
 
     /// <summary>
     /// Sets a tower's standing order. Free - it does not consume the single move.
     /// </summary>
+    /// <remarks>
+    /// Carried-over towers take orders too. An order is a pre-committed conditional about how a
+    /// tower fights this wave, not a property of the hand that placed it, and combat has no live
+    /// input - so a board of persisted towers with no settable orders would be a board with no
+    /// tactics at all (docs/design/05-battlefield.md § Standing orders).
+    /// </remarks>
     public WaveSession SetStandingOrder(SocketRef socket, StandingOrder order)
     {
+        ArgumentNullException.ThrowIfNull(order);
+
         Require(Phase == WavePhase.AdjustmentWindow, "Standing orders are set in the adjustment window.");
         Require(!Tuning.Rules.StandingOrderChangesConsumeMove, "This tuning charges a move for a standing-order change, which the prototype does not.");
+        Require(IsOccupied(socket), $"There is no tower at {socket} to give an order.");
 
-        return this with { Draft = Draft.WithOrder(socket, order) };
+        return IsPersisted(socket)
+            ? this with { Persisted = [.. Persisted.Select(t => t.Socket == socket ? t with { Order = order } : t)] }
+            : this with { Draft = Draft.WithOrder(socket, order) };
     }
 
     /// <summary>
@@ -276,11 +332,14 @@ public sealed record WaveSession
 
         double persistedMultiplier = Tuning.FormationStrength.Persisted;
 
+        // No socket filter: the two halves are disjoint by construction, because a placement onto an
+        // occupied socket evicts whatever stood there at placement time. Filtering here instead would
+        // resolve a collision backwards - keeping the tower that was replaced and discarding the one
+        // that replaced it.
         List<TowerState> carried =
         [
             .. Persisted,
-            .. Draft.BuildBoard(Tuning).Towers
-                .Where(t => !Persisted.Any(p => p.Socket == t.Socket))
+            .. Draft.BuildBoard(Tuning, PersistedSockets).Towers
                 .Select(t => t with { FormationMultiplier = persistedMultiplier, RunBonus = 0.0 }),
         ];
 
@@ -328,12 +387,24 @@ public sealed record WaveSession
     /// </summary>
     private BoardState CombinedBoard(WaveDraft draft, double entry)
     {
-        BoardState current = draft.BuildBoard(Tuning);
+        BoardState current = draft.BuildBoard(Tuning, PersistedSockets);
 
         return Persisted.Count == 0
             ? current
             : BoardState.Create(Tuning, [.. Persisted, .. current.Towers], entry);
     }
+
+    /// <summary>
+    /// Sockets held by carried-over towers, which the draft must not seat anything on top of.
+    /// </summary>
+    private IReadOnlyCollection<SocketRef> PersistedSockets => [.. Persisted.Select(t => t.Socket)];
+
+    /// <summary>Whether any tower stands at this socket, this hand's or a carried-over one.</summary>
+    private bool IsOccupied(SocketRef socket) =>
+        IsPersisted(socket) || Draft.Placements.Any(p => p.Socket == socket);
+
+    /// <summary>Whether the tower at this socket is one carried in from an earlier wave.</summary>
+    private bool IsPersisted(SocketRef socket) => Persisted.Any(t => t.Socket == socket);
 
     /// <summary>
     /// Whether two sockets are one apart: neighbouring depths in a lane, or the junction and the

@@ -1,7 +1,15 @@
 <Project Sdk="Godot.NET.Sdk/4.7.1">
 
   <PropertyGroup>
-    <TargetFramework>$(BastionTargetFramework)</TargetFramework>
+    <!--
+      MUST be a literal, and MUST stay equal to $(BastionTargetFramework) in Directory.Build.props.
+
+      The Godot editor rewrites this element in place - a $(...) reference here is silently replaced
+      with the resolved value the next time Godot touches the project. So unlike core/ and tests/,
+      this one project cannot share the property directly. GuardTargetFramework below fails the build
+      if the two ever disagree, which is the part that actually keeps them in step.
+    -->
+    <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
 
     <AssemblyName>21 Bastion</AssemblyName>
@@ -25,5 +33,15 @@
   <ItemGroup>
     <ProjectReference Include="core/Bastion.Core.csproj" />
   </ItemGroup>
+
+  <!--
+    The Godot layer references Bastion.Core, so a target framework mismatch between them fails late
+    and confusingly. Since Godot rewrites the literal above, the single source of truth can only be
+    enforced, not shared - so enforce it.
+  -->
+  <Target Name="GuardTargetFramework" BeforeTargets="Restore;CollectPackageReferences;Build">
+    <Error Condition="'$(TargetFramework)' != '$(BastionTargetFramework)'"
+           Text="TargetFramework is '$(TargetFramework)' but Directory.Build.props sets BastionTargetFramework to '$(BastionTargetFramework)'. The Godot editor rewrites this element, so it has drifted. Set it back to '$(BastionTargetFramework)' by hand." />
+  </Target>
 
 </Project>
