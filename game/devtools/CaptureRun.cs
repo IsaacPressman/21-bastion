@@ -4,6 +4,7 @@ using Bastion.Core.Board;
 using Bastion.Core.Cards;
 using Bastion.Core.Wave;
 using Bastion.Game.Presentation;
+using Bastion.Game.Startup;
 using Godot;
 
 namespace Bastion.Game.DevTools;
@@ -44,6 +45,8 @@ public partial class CaptureRun : Node
 
     private WaveController _controller = null!;
     private BattlefieldView _battlefield = null!;
+    private Control _uiRoot = null!;
+    private Bastion.Core.Validation.Battery _battery = null!;
     private string _outputDirectory = DefaultOutputDirectory;
     private int _written;
     private int _failures;
@@ -55,7 +58,12 @@ public partial class CaptureRun : Node
     /// Reads the user args - everything after <c>--</c> - so the flags cannot collide with Godot's own.
     /// Called from the composition root, which is the only place that has the wired-up nodes to hand.
     /// </remarks>
-    public static void AttachIfRequested(Node parent, WaveController controller, BattlefieldView battlefield)
+    public static void AttachIfRequested(
+        Node parent,
+        WaveController controller,
+        BattlefieldView battlefield,
+        Control uiRoot,
+        Bastion.Core.Validation.Battery battery)
     {
         string[] args = OS.GetCmdlineUserArgs();
 
@@ -69,6 +77,8 @@ public partial class CaptureRun : Node
             Name = "CaptureRun",
             _controller = controller,
             _battlefield = battlefield,
+            _uiRoot = uiRoot,
+            _battery = battery,
             _outputDirectory = ArgumentAfter(args, OutputFlag) ?? DefaultOutputDirectory,
         };
 
@@ -87,6 +97,7 @@ public partial class CaptureRun : Node
 
             await Frames(30);
 
+            await CapturePicker();
             await CheckClickPath();
             await CaptureScriptedWave();
 
@@ -151,12 +162,28 @@ public partial class CaptureRun : Node
     {
         await Shot("01-placement");
 
+        // The same pending card over the longest socket and the shortest, photographed apart. Range
+        // runs 4.0 / 3.0 / 2.0 forward to rear and the prospective window is the only thing that says
+        // so at the moment of choosing; it is drawn on hover, so a run that never hovers cannot
+        // review it. Taken here, while lane 1 is still empty - later there is no free 4.0 socket left
+        // to compare against.
+        await Hover(SocketRef.InLane(1, 0));
+        await Shot("01a-prospective-reach-4");
+
+        await Hover(SocketRef.InLane(1, 2));
+        await Shot("01b-prospective-reach-2");
+
         Place(SocketRef.InLane(1, 0), Family.Spade);
         await Shot("02-draw-decision");
 
         _controller.Hit();
         await Settle();
         await Shot("03-placement-after-hit");
+
+        // An occupied socket for contrast: a window a tower already owns is filled, one it does not
+        // have yet is outlined, and the two must not read as the same claim.
+        await Hover(SocketRef.InLane(1, 0));
+        await Shot("03a-existing-coverage");
 
         Place(SocketRef.InLane(0, 2), Family.Club);
         await Shot("04-draw-decision-again");
@@ -178,6 +205,22 @@ public partial class CaptureRun : Node
         await Shot("08-combat-complete");
     }
 
+    /// <summary>
+    /// Puts the pointer on a socket, through the same event path a real pointer takes.
+    /// </summary>
+    /// <remarks>
+    /// Synthesised the way <see cref="CheckClickPath"/> synthesises a click, and for the same reason:
+    /// hover state that only responds to the OS cursor would photograph as an empty board here and
+    /// look fine in a hand-driven session.
+    /// </remarks>
+    private async Task Hover(SocketRef socket)
+    {
+        Vector2 at = _battlefield.ScreenPositionOf(socket);
+
+        Godot.Input.ParseInputEvent(new InputEventMouseMotion { Position = at, GlobalPosition = at });
+        await Frames(3);
+    }
+
     private void Place(SocketRef socket, Family family)
     {
         if (_controller.Session.Phase == WavePhase.AwaitingPlacement)
@@ -194,6 +237,32 @@ public partial class CaptureRun : Node
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
+    }
+
+    /// <summary>
+    /// Photographs the facilitator's opening screen.
+    /// </summary>
+    /// <remarks>
+    /// The picker is skipped during a capture run - it would wait for a click that never comes - so
+    /// it is built here, shot, and freed. It is a real <see cref="FixturePicker"/> over the real
+    /// battery, which is the point: this project's rule is that the UI cannot be reviewed by reading
+    /// it, and a screen nobody has looked at is a screen nobody has checked.
+    /// </remarks>
+    private async Task CapturePicker()
+    {
+        var picker = new FixturePicker(
+            _controller.Tuning, _battery, _controller.Tuning.March.ActivePreset, (_, _) => { });
+
+        _uiRoot.AddChild(picker);
+
+        // Anchors resolve on a layout pass, and a freshly added Control needs a few frames before
+        // its children have real rects. Two was not enough and produced a screenshot of a
+        // minimum-sized picker floating over a live board.
+        await Frames(10);
+        await Shot("00-fixture-picker");
+
+        picker.QueueFree();
+        await Frames(2);
     }
 
     private async Task Shot(string name)

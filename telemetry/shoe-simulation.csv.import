@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bmukcn6ql1om8"
+
+[deps]
+
+files=["res://telemetry/shoe-simulation. player stands on 17..translation"]
+
+source_file="res://telemetry/shoe-simulation.csv"
+dest_files=["res://telemetry/shoe-simulation. player stands on 17..translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -40,6 +40,8 @@ public partial class CombatPlaybackView : HBoxContainer
     private double _cursor;
     private double _previousCursor;
     private int _speedIndex;
+    private int _fastestSpeedUsed;
+    private bool _skipped;
     private bool _playing;
     private bool _finished;
 
@@ -49,6 +51,17 @@ public partial class CombatPlaybackView : HBoxContainer
     private Button _speedButton = null!;
     private Button _skipButton = null!;
     private Button _nextWaveButton = null!;
+
+    /// <summary>
+    /// Raised once a wave's playback ends, saying how the player consumed it.
+    /// </summary>
+    /// <remarks>
+    /// One of the four instrumentation items only the interface can see. The transport is the only
+    /// thing that knows whether a wave was watched through, hurried, or dismissed, and
+    /// <c>game/telemetry/PlaytestLog.cs</c> is the only listener.
+    /// </remarks>
+    [Signal]
+    public delegate void PlaybackFinishedEventHandler(string disposition);
 
     public void Bind(WaveController controller, BattlefieldView battlefield, PostWaveView postWave)
     {
@@ -164,6 +177,8 @@ public partial class CombatPlaybackView : HBoxContainer
         _cursor = 0.0;
         _previousCursor = 0.0;
         _speedIndex = 0;
+        _fastestSpeedUsed = 0;
+        _skipped = false;
         _playing = false;
         _finished = false;
 
@@ -202,6 +217,7 @@ public partial class CombatPlaybackView : HBoxContainer
     private void CycleSpeed()
     {
         _speedIndex = (_speedIndex + 1) % Speeds.Length;
+        _fastestSpeedUsed = System.Math.Max(_fastestSpeedUsed, _speedIndex);
         _speedButton.Text = $"×{Speeds[_speedIndex]:0}";
     }
 
@@ -212,6 +228,7 @@ public partial class CombatPlaybackView : HBoxContainer
             return;
         }
 
+        _skipped = true;
         _cursor = _player.Duration;
         _previousCursor = _cursor;
         _playing = false;
@@ -237,7 +254,24 @@ public partial class CombatPlaybackView : HBoxContainer
         _nextWaveButton.Visible = true;
         UpdateStatus();
         _postWave.Show(_controller.Forecast);
+
+        // "Combat watched / fast-forwarded / skipped" carries a pre-committed reading: if it is
+        // always skipped, that is information, not failure (docs/prototype/VALIDATION.md).
+        EmitSignal(SignalName.PlaybackFinished, Disposition());
     }
+
+    /// <summary>
+    /// How this wave's combat was consumed: skipped, fast-forwarded, or watched.
+    /// </summary>
+    /// <remarks>
+    /// Skipping wins over speed because a player who raised the speed and then gave up did give up.
+    /// Speed is read from the highest setting reached rather than the current one, since the
+    /// transport cycles back round to x1.
+    /// </remarks>
+    private string Disposition() =>
+        _skipped ? "skipped"
+        : _fastestSpeedUsed > 0 ? "fast-forwarded"
+        : "watched";
 
     private void UpdateStatus()
     {

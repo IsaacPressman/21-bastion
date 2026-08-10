@@ -59,7 +59,7 @@ through properties low cards cannot stack into.
 
 | Card | Property |
 |---|---|
-| **All 10/J/Q/K** | Range **4.0** instead of 3.0, and may occupy the shared junction socket without the usual contribution penalty. |
+| **All 10/J/Q/K** | **+1.0 range on top of whatever their socket grants**, and may occupy the shared junction socket without the usual contribution penalty. |
 | **Jack** | Mobile. Relocates to an adjacent socket once mid-wave, automatically, when nothing is in range. |
 | **Queen** | **Wild in runs.** Counts as any value for the purpose of forming a run link. She is the only way a face card joins a run, and the only bridge across a gap in a sequence. |
 | **King** | Anchor. Ignores half of flat armor; cannot be displaced. |

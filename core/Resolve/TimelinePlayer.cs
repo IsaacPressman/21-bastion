@@ -30,6 +30,26 @@ public sealed record EnemyPlaybackState
 }
 
 /// <summary>
+/// One lane's running leak total at an instant of playback.
+/// </summary>
+/// <remarks>
+/// The Final Forecast promises per lane - "Lane 0 takes 9 of 19" - so the wave has to be watchable
+/// per lane for the promise to be checkable at all. A single summed counter cannot be compared
+/// against a contract that was never stated as a sum, and lanes are not interchangeable
+/// (docs/design/05-battlefield.md).
+/// </remarks>
+public sealed record LaneLeakProgress
+{
+    public required int LaneIndex { get; init; }
+
+    /// <summary>Units of this lane that have leaked at or before the frame's time.</summary>
+    public required int LeakedCount { get; init; }
+
+    /// <summary>Damage this lane has taken at or before the frame's time.</summary>
+    public required int LeakDamage { get; init; }
+}
+
+/// <summary>
 /// The drawable state of the whole wave at one instant of playback.
 /// </summary>
 public sealed record PlaybackFrame
@@ -42,6 +62,9 @@ public sealed record PlaybackFrame
 
     /// <summary>Total leak damage dealt at or before <see cref="Time"/>.</summary>
     public required int LeakDamageSoFar { get; init; }
+
+    /// <summary>The same totals split by lane, in lane order. One entry per tuned lane, always.</summary>
+    public required IReadOnlyList<LaneLeakProgress> Lanes { get; init; }
 
     /// <summary>True once the cursor is at or past the wave's end.</summary>
     public required bool IsComplete { get; init; }
@@ -69,6 +92,7 @@ public sealed class TimelinePlayer
 {
     private readonly WaveTimeline _timeline;
     private readonly double _pathLength;
+    private readonly int _lanes;
     private readonly IReadOnlyList<UnitTrack> _tracks;
 
     public TimelinePlayer(WaveTimeline timeline, TuningData tuning)
@@ -78,6 +102,7 @@ public sealed class TimelinePlayer
 
         _timeline = timeline;
         _pathLength = tuning.Geometry.PathLength;
+        _lanes = tuning.Geometry.Lanes;
         _tracks = BuildTracks(timeline, tuning);
     }
 
@@ -91,12 +116,23 @@ public sealed class TimelinePlayer
         int leakedCount = 0;
         int leakDamage = 0;
 
+        // Sized to the tuned lane count rather than to whatever lanes happen to have leaked, so a lane
+        // that held reports a zero instead of vanishing from the readout.
+        int[] laneCount = new int[_lanes];
+        int[] laneDamage = new int[_lanes];
+
         foreach (UnitTrack track in _tracks)
         {
             if (track.Exit == UnitExit.Leaked && time >= track.ExitTime)
             {
                 leakedCount++;
                 leakDamage += track.LeakDamage;
+
+                if (track.LaneIndex >= 0 && track.LaneIndex < _lanes)
+                {
+                    laneCount[track.LaneIndex]++;
+                    laneDamage[track.LaneIndex] += track.LeakDamage;
+                }
             }
 
             bool onField = time >= track.SpawnTime && time < track.ExitTime;
@@ -123,6 +159,12 @@ public sealed class TimelinePlayer
             LiveEnemies = live,
             LeakedCount = leakedCount,
             LeakDamageSoFar = leakDamage,
+            Lanes = [.. Enumerable.Range(0, _lanes).Select(lane => new LaneLeakProgress
+            {
+                LaneIndex = lane,
+                LeakedCount = laneCount[lane],
+                LeakDamage = laneDamage[lane],
+            })],
             IsComplete = time >= Duration,
         };
     }

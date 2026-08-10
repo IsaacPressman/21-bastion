@@ -62,14 +62,19 @@ public static class Engagement
     /// <summary>
     /// Engagement summed across occupied sockets. Empty sockets contribute nothing.
     /// </summary>
+    /// <remarks>
+    /// Each socket brings its own range: range varies by position (the geometry remedy for
+    /// deep-placement dominance, docs/ROADMAP.md Open Decision 2), so a single scalar range here
+    /// would silently average sockets that are no longer alike. Explanatory only - see the type
+    /// remarks on why this figure must never be multiplied by board power.
+    /// </remarks>
     public static double Total(
-        IEnumerable<double> occupiedSocketPositions,
-        double range,
+        IEnumerable<(double Position, double Range)> occupiedSockets,
         double entry,
         double pathLength)
     {
-        ArgumentNullException.ThrowIfNull(occupiedSocketPositions);
+        ArgumentNullException.ThrowIfNull(occupiedSockets);
 
-        return occupiedSocketPositions.Sum(position => ForSocket(position, range, entry, pathLength));
+        return occupiedSockets.Sum(s => ForSocket(s.Position, s.Range, entry, pathLength));
     }
 }

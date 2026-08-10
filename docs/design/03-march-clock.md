@@ -16,49 +16,66 @@ that leaves long hands playable.
 
 ## The geometry problem it had (and why the fix is shaped this way)
 
-With sockets at path positions 3, 6, and 9 and a range of 3.0 units, each tower's engagement window is:
+Sockets sit at path positions 3, 6, and 9. **Range differs by socket** — 4.0, 3.0, 2.0 — for the reason
+in the next section. Each tower's engagement window is:
 
-| Socket | Window | Length |
-|---|---|---:|
-| 3 | 0–6 | 6.0 |
-| 6 | 3–9 | 6.0 |
-| 9 | 6–12 | 6.0 |
-| **Total** | | **18.0** |
+| Socket | Range | Window | Length |
+|---|---:|---|---:|
+| 3 | 4.0 | 0–7 | 7.0 |
+| 6 | 3.0 | 3–9 | 6.0 |
+| 9 | 2.0 | 7–11 | 4.0 |
+| **Total** | | | **17.0** |
 
-Advancing the army's entry point by 1.0 unit eats one unit from the socket-3 tower and *nothing* from the
-other two, because their windows begin at or after the new entry point. Total engagement falls from 18.0
-to 17.0 — a **5.6%** cost.
+Both outer windows are clipped by the path: socket 3 would reach back to −1 and socket 9 forward to 11
+against a path of 12.
 
-Worse, that cost is not a tax on drawing. **Because entry advances from the spawn side, it eats the
-forward socket's window first and the rear socket's last — so it is a tax on forward placement, which a
-player avoids by building deep.** The intended pressure was close to inverted.
+Advancing the army's entry point eats the **forward** socket's window first and the rear socket's last,
+because entry advances from the spawn side. Under the original flat 3.0 range that made the cost a **tax
+on forward placement, which a player avoids by building deep** — the intended pressure close to inverted.
+Range-by-position is the answer to that, not a change to the step.
 
 > **Correction: the step must be comparable to the 3.0-unit socket spacing to consume whole windows
 > rather than shaving one.**
 
-Keep this reasoning attached to the numbers. If socket spacing or range is ever retuned, the march step
-sizes must be re-derived from them — they are not independent.
+Keep this reasoning attached to the numbers. If socket **spacing** is ever retuned, the march step sizes
+must be re-derived from it — they are not independent. Range is a separate lever: it redistributes
+engagement between sockets without changing the spacing the steps are sized against, which is exactly why
+it could be used as the remedy while the arms stayed fixed.
 
 ---
 
-## ⚠ Deep placement may be weakly dominant
+## ✅ Deep placement was weakly dominant, and the geometry was fixed
 
-**Flagged before any build.** At entry 0 all three sockets give identical engagement. Every unit of
-advancement degrades forward sockets while leaving rear ones untouched, so **deep placement is weakly
-dominant whenever entry exceeds 0**, and more so as the clock bites harder.
+**Flagged before any build, measured at Milestone 1, remedied at Milestone 5.**
 
-**A mechanic added to enrich placement may be flattening it.**
+The original geometry gave all three sockets an identical 6.0 window at entry 0, so every unit of
+advancement degraded forward sockets while leaving rear ones untouched — **deep placement was weakly
+dominant whenever entry exceeded 0**, and more so as the clock bit harder. Run-link adjacency, the
+junction socket, and leak thresholds all push back, but **none of that pushback lives in the engagement
+arithmetic — it lives in the resolver**, so it could only be settled by running it.
 
-Run-link adjacency, the junction socket, traps that need early application, and enemies that must be
-stopped before a leak threshold all push back — **but none of that pushback lives in the engagement
-arithmetic. It lives in the resolver.**
+It was. `tests/Measurement/DeepPlacementSweep.cs` confirmed deep dominance in every arm, and the
+pre-committed reading in `../prototype/VALIDATION.md` took effect: **fix the socket geometry before the
+march curve.** Nine candidates were swept against a selection rule committed before the numbers were read
+(`telemetry/geometry-candidates.csv`).
 
-> **This is the first thing to measure once the resolver runs. If deep placement wins everywhere, the
-> socket geometry needs work before the march curve does.**
+**Result: range differences by position.** Forward sockets open with a wider window and therefore have
+more to lose; rear sockets open with less and lose none. A short hand is better off forward, a hand that
+paid for a fifth card is better off deep, and the crossover is the decision.
 
-Instrumented via placement-depth logging (`../prototype/VALIDATION.md`). The remedy, if confirmed, is
-socket geometry — uneven spacing, range differences by position, or lane-specific leak thresholds — **not
-the march curve.**
+| Arm | Depth effect before | After |
+|---|---:|---:|
+| A (flat) | −1.40 | +0.73 |
+| B (soft) | −1.47 | +0.40 |
+| C (hard) | −1.87 | +0.40 |
+
+Negative means deep placement leaked less, i.e. deep won.
+
+**Two honest caveats.** Uneven socket spacing — the remedy this document named *first* — was measured and
+**does not work**: it left the margin unchanged or slightly worse, because moving the middle socket does
+not change which end advancement arrives from. And the remedy slightly overshoots: the residual is now a
+mild *shallow* lean, largest in Arm A (+1.27 with run links modelled) and smallest in Arm C. Placement-depth
+logging stays in the instrumentation set to watch it.
 
 ---
 
@@ -73,12 +90,17 @@ Shipping curve (**Arm C — hard escalation**, the curve specified by the design
 
 | Card | Step | Cumulative Entry | Engagement Remaining | Cost |
 |---|---:|---:|---:|---:|
-| 3rd | +1.5 | 1.5 | 16.5 | −8% |
-| 4th | +2.5 | 4.0 | 13.0 | −28% |
-| 5th | +3.5 | 7.5 | 6.0 | −67% |
+| 3rd | +1.5 | 1.5 | 15.5 | −9% |
+| 4th | +2.5 | 4.0 | 12.0 | −29% |
+| 5th | +3.5 | 7.5 | 5.0 | −71% |
 
-The third card is cheap, which is correct — a third tower is worth far more than 8% of engagement. The
+The third card is cheap, which is correct — a third tower is worth far more than 9% of engagement. The
 fourth is a real decision. The fifth is close to lethal.
+
+> **The geometry remedy did not soften the clock.** These costs were −8% / −28% / −67% under the flat
+> range. That they barely moved is deliberate: the three march arms are pre-committed test arms, and a
+> geometry change that quietly flattened the curve would have answered the fifth-card question before the
+> playtest could ask it.
 
 The other two presets (flat, and soft escalation) ship in the same build. See
 `../reference/tuning-constants.md` § March Clock Presets.
@@ -90,19 +112,19 @@ indefinitely, and entry clamps at 9.0.**
 
 | Hand | Unclamped | Actual entry | Engagement |
 |---|---:|---:|---:|
-| 6 cards | 11.0 | **9.0** | 3.0 |
-| 7 cards | 14.5 | **9.0** | 3.0 |
-| 6-card 21 | — | **6.0** | 9.0 |
+| 6 cards | 11.0 | **9.0** | 2.0 |
+| 7 cards | 14.5 | **9.0** | 2.0 |
+| 6-card 21 | — | **6.0** | 8.0 |
 
 **Why clamp.** Uncapped repetition puts a seven-card hand *past the end of the path* — enemies spawning at
 the Bastion, zero engagement, a guaranteed full leak. That is an automatic loss for a legal, rare,
 genuinely impressive hand, and it feels worse than any amount of severity.
 
 **Why 9.0.** It is the rear socket's own position, so **enemies never spawn past your last defense.** It
-leaves 3.0 engagement of 18.0 — brutal, survivable. The clamp is derived from geometry, not chosen
+leaves 2.0 engagement of 17.0 — brutal, survivable. The clamp is derived from geometry, not chosen
 independently of it; `TuningLoader` fails the load if the two disagree.
 
-**The clamp applies before the pullback.** A six-card 21 lands at entry 6.0 and recovers 9.0 units of
+**The clamp applies before the pullback.** A six-card 21 lands at entry 6.0 and recovers 8.0 units of
 engagement — still a real rescue at the point where you most need one.
 
 ### Two accepted consequences
@@ -119,7 +141,7 @@ Noted rather than fixed:
 
 ### Engagement formula
 
-For entry point `e`, a socket at position `s` with range `r` on a path of length `L`:
+For entry point `e`, a socket at position `s` with **its own** range `r` on a path of length `L`:
 
 ```
 engagement(s) = max(0, min(s + r, L) - max(s - r, e))
@@ -127,10 +149,10 @@ total_engagement = Σ engagement(s) over occupied sockets
 ```
 
 Every row in every table above reproduces exactly. Note the `min(s + r, L)` term — omitting it was the
-source of the Revision 7 arithmetic error (socket 9's full 6.0 window summed against a remaining path of
-only 4.5 units).
+source of the Revision 7 arithmetic error (socket 9's full window summed against a shorter remaining
+path). Note also that `r` is read **per socket** — see § The geometry problem it had.
 
-Engagement is a property of **occupied** sockets. The 18.0 figure assumes all three sockets in a lane are
+Engagement is a property of **occupied** sockets. The 17.0 figure assumes all three sockets in a lane are
 filled.
 
 ---

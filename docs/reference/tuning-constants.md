@@ -19,10 +19,11 @@ arms.
 | Lanes | 2 | Prototype |
 | Junction sockets | 1 | Shared; reduced contribution |
 | Total sockets | 7 | |
-| Default tower range | 3.0 | |
-| Face card range (10/J/Q/K) | 4.0 | Also no junction contribution penalty |
+| Tower range by socket | 4.0, 3.0, 2.0 | **Forward to rear.** The socket-geometry remedy — see § Resolved at Milestone 5 |
+| Junction tower range | 3.0 | The middle socket's, derived not tuned; the junction shares its ground |
+| Face card range bonus (10/J/Q/K) | +1.0 | **Added to the socket's range, not substituted.** Also no junction contribution penalty |
 | Default entry point | 0.0 | |
-| Full engagement (3 towers, entry 0) | 18.0 | Derived, not independent |
+| Full engagement (3 towers, entry 0) | 17.0 | Derived, not independent: 7.0 + 6.0 + 4.0 |
 
 **Engagement formula:**
 ```
@@ -227,9 +228,51 @@ Run shape: 3 regions, 12 combat encounters, 27 waves.
 
 ---
 
+## Resolved at Milestone 5
+
+### ✅ Socket geometry — deep placement was weakly dominant, and range now varies by socket
+
+**Open Decision 2, closed.** Range was one flat 3.0 for every socket, which gave all three an identical
+6.0 window at entry 0. Advancement enters from the spawn side, so it could only ever eat the forward
+socket's window — a tax on forward placement that a player avoids by building deep.
+
+Measured, not asserted. `tests/Measurement/DeepPlacementSweep.cs` confirmed deep dominance in every arm,
+which triggered the pre-committed reading in `../prototype/VALIDATION.md`: **fix the socket geometry before
+the march curve.** `Sweep_candidate_geometries` then swept nine candidates against a selection rule
+committed before the numbers were read — smallest worst-arm depth effect, tie-break on the smaller spread
+between arms, rejecting strong shallow inversion. Output: `telemetry/geometry-candidates.csv`.
+
+| Arm | Depth effect before | After | With run links, after |
+|---|---:|---:|---:|
+| A (flat) | −1.40 | +0.73 | +1.27 |
+| B (soft) | −1.47 | +0.40 | +0.60 |
+| C (hard) | −1.87 | +0.40 | +0.53 |
+
+Negative means deep placement leaked less. **Deep dominance is gone in every arm.**
+
+Three things worth carrying forward:
+
+1. **Uneven socket spacing does not work.** It was the design's *first-named* remedy and it was measured:
+   `[3,5,9]` and `[3,7,9]` left the margin unchanged or slightly worse. Moving the middle socket does not
+   change which end advancement arrives from. **Do not retry it without a new argument.**
+2. **The remedy overshoots slightly.** The residual is a mild shallow lean, largest in Arm A. Placement-depth
+   logging stays in the instrumentation set to watch it in playtest.
+3. **The march curve was untouched, and the clock did not soften.** The fifth card cost −67% before and
+   −71% after. That was a constraint, not a coincidence: the arms are pre-committed test arms.
+
+**This is a deliberate divergence from the Revision 7.1 archive**, which specifies a flat 3.0 range. It is
+not a transcription bug — do not "correct" it back. Every number is first-pass and expected to be wrong
+(CLAUDE.md hard invariant 11); this one was measured wrong and replaced.
+
+---
+
 ## Resolved in Revision 7.1
 
 ### ✅ Fifth-card engagement — was −58%, is **−67%**
+
+> ⚠ **Superseded by the geometry remedy above.** The reasoning below is correct and still worth reading —
+> the dropped `min(s + r, L)` term is a live trap — but the arithmetic describes the flat-range geometry.
+> Under range-by-socket the fifth card leaves **5.0 of 17.0**, a −71% cost.
 
 Revision 7 reported 7.5 units remaining at entry 7.5; **the correct value is 6.0.** The error was summing
 socket 9's full 6.0 window against a remaining path of only 4.5 units — i.e. omitting the `min(s + r, L)`
@@ -250,7 +293,8 @@ not corrected — see the warning under the engagement formula above.
 
 ### ✅ 3+3+5+5 engagement comparison — was 28%, is **38%**
 
-18.0 against 13.0.
+18.0 against 13.0 under the flat-range geometry. Under range-by-socket it is 17.0 against 12.0, i.e.
+**29%** — the comparison the correction was making still holds, and its magnitude barely moved.
 
 ### ✅ March placement bias — was stated backwards
 
@@ -258,7 +302,9 @@ Revision 7 called the flat step a tax on **rear** placement. Entry advances from
 consumes the **forward** socket's window first. It was a tax on **forward** placement.
 
 This correction produced a **new** open risk: deep placement is weakly dominant whenever entry exceeds 0.
-See `../design/03-march-clock.md` and `../prototype/RISKS-AND-ADDBACKS.md`.
+**That risk was measured and remedied at Milestone 5 — see § Resolved at Milestone 5.** The direction
+stated here is unchanged and still correct; what changed is that forward sockets now open wide enough to
+be worth the tax.
 
 ---
 
@@ -360,6 +406,35 @@ Base wave composition now ships as data (`encounters` in `data/tuning.json`), be
 Six, not the roster's five — the document states lane two forecasts **6 damage** undefended and fast raiders
 leak 1 each. **Encounter groups carry explicit counts that override the roster; the roster `count` is the
 Dealer pack size.** Lane one's three armored soldiers leak 2 each, also 6.
+
+### Milestone 5: battery encounters and shoe presets
+
+Both are named by `../prototype/VALIDATION.md` and specified by nothing.
+
+**Battery encounters** (`battery_severe`, `battery_mild`, `battery_held`, `battery_even`,
+`battery_vault_first`, `battery_bastion_first`). The scripted battery calls for "a severe Open lane,
+versus a mild one, versus one already Held" and never says how severe. Severity is set by undefended
+leak damage; the counts are chosen to separate the three clearly and are otherwise arbitrary.
+
+Note the deliberate asymmetry between two of them: `battery_vault_first` and `battery_bastion_first` are
+the same field with the **stakes exchanged and the waves left alone**, which changes the decision — that
+is the triage question item 6 asks. The lane *mirror* used for variant B swaps stakes and waves
+**together**, which preserves it. Confusing the two would turn a contrast into a duplicate.
+
+**Shoe presets** (`baseline`, `faceHeavy`, `manyCard`). Step 3 of the regression procedure simulates
+10,000 hands each for "baseline, face-heavy, and many-card shoes" without saying what those are. Every
+preset holds the shoe at `rules.shoeSize`, so bust rate and board width stay comparable — a preset of a
+different size would change the reshuffle cadence, which is a second variable nobody asked for.
+
+| Preset | Composition | Measured effect |
+|---|---|---|
+| `baseline` | two of every rank | 2.91 cards/hand, 29.2% bust |
+| `faceHeavy` | four of each ten-valued rank | 2.44 cards/hand, 25.5% bust |
+| `manyCard` | loaded with A–5 | 3.58 cards/hand, 18.2% bust, entry 3.02 |
+
+⚠ **`faceHeavy` busts *less* than baseline**, which reads backwards until you notice the simulation's
+stand-on-17 policy: face-heavy hands reach 17 in two cards and never hit again. Do not read that column
+as a difficulty signal.
 
 ### Milestone 3: bust, Overload, and Dealer face-card units
 

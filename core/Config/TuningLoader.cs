@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bastion.Core.Cards;
 
 namespace Bastion.Core.Config;
 
@@ -83,9 +84,24 @@ public static class TuningLoader
     }
 
     /// <summary>
-    /// Checks the invariants that a hand-edited tuning file can plausibly violate.
+    /// Checks the invariants a hand-edited or in-memory tuning value can plausibly violate.
     /// </summary>
-    private static void Validate(TuningData d, string source)
+    /// <remarks>
+    /// A <c>with</c>-expression over loaded tuning bypasses every cross-field rule the file was
+    /// checked against - move the sockets and <c>march.entryClampMax</c> and the junction position
+    /// no longer follow them. The geometry sweeps do exactly that, so they need a way to assert
+    /// their candidates are configurations the game would actually accept, rather than measuring an
+    /// inconsistent one and reading the result as geometry.
+    /// </remarks>
+    /// <exception cref="TuningValidationException">If any check fails.</exception>
+    public static void Validate(TuningData data, string sourceLabel = "<constructed>")
+    {
+        ArgumentNullException.ThrowIfNull(data);
+
+        ValidateCore(data, sourceLabel);
+    }
+
+    private static void ValidateCore(TuningData d, string source)
     {
         List<string> errors = [];
 
@@ -105,6 +121,65 @@ public static class TuningLoader
             if (position < 0 || position > d.Geometry.PathLength)
             {
                 errors.Add($"geometry.socketPositions contains {position}, outside the path 0..{d.Geometry.PathLength}.");
+            }
+        }
+
+        // Two places read the middle socket by index (GeometryTuning.MiddleSocketIndex, and the
+        // junction adjacency rule in Wave/WaveSession.cs) while the junction-position check below
+        // reads it by sorted position. Those agree only while the positions ascend, so require it
+        // rather than leave a silent dependency - uneven spacing makes this easy to get wrong.
+        for (int i = 1; i < d.Geometry.SocketPositions.Count; i++)
+        {
+            if (d.Geometry.SocketPositions[i] <= d.Geometry.SocketPositions[i - 1])
+            {
+                errors.Add($"geometry.socketPositions must ascend, spawn side first; index {i} ({d.Geometry.SocketPositions[i]}) does not follow {d.Geometry.SocketPositions[i - 1]}.");
+                break;
+            }
+        }
+
+        // Range varies by socket: the geometry remedy for deep-placement dominance
+        // (docs/ROADMAP.md Open Decision 2). One entry per socket, or a placement reads off the end.
+        if (d.Geometry.RangeBySocket.Count != d.Geometry.SocketPositions.Count)
+        {
+            errors.Add($"geometry.rangeBySocket has {d.Geometry.RangeBySocket.Count} entries but there are {d.Geometry.SocketPositions.Count} sockets; it is indexed by socket.");
+        }
+
+        if (d.Geometry.RangeBySocket.Any(range => range <= 0))
+        {
+            errors.Add("geometry.rangeBySocket contains a non-positive range; a tower that cannot reach the path is not a tower.");
+        }
+
+        if (d.Geometry.FaceCardRangeBonus < 0)
+        {
+            errors.Add($"geometry.faceCardRangeBonus ({d.Geometry.FaceCardRangeBonus}) must not be negative; face cards see further, not less far (docs/design/04-cards-as-defenses.md).");
+        }
+
+        // Shoe presets. Each must hold the shoe at its tuned size, or a preset changes how often
+        // the shoe reshuffles and the 10,000-hand runs stop being comparable with one another.
+        foreach ((string key, ShoePreset preset) in d.ShoePresets)
+        {
+            if (preset.CopiesByRank is not { } counts)
+            {
+                continue;
+            }
+
+            foreach (string rank in counts.Keys)
+            {
+                if (!Enum.GetValues<Rank>().Any(r => string.Equals(r.TuningKey(), rank, StringComparison.Ordinal)))
+                {
+                    errors.Add($"shoePresets.{key}.copiesByRank has '{rank}', which is not a rank. Use A, 2-10, J, Q, or K.");
+                }
+            }
+
+            if (counts.Values.Any(count => count < 0))
+            {
+                errors.Add($"shoePresets.{key}.copiesByRank has a negative count.");
+            }
+
+            int total = counts.Values.Sum();
+            if (total != d.Rules.ShoeSize)
+            {
+                errors.Add($"shoePresets.{key} holds {total} cards but rules.shoeSize is {d.Rules.ShoeSize}; presets must be the same size or their bust rates are not comparable.");
             }
         }
 

@@ -269,7 +269,7 @@ public sealed class WaveDraft
             Family = Family.Club,
             Socket = socket,
             BasePower = tuning.AceBastion.Power,
-            Range = tuning.Geometry.FaceCardRange,
+            Range = TowerState.RangeFor(tuning, socket, faceCard: true),   // King-class
             FormationMultiplier = tuning.AceBastion.SharesHandMultiplier ? handMultiplier : 1.0,
             RunBonus = 0.0,               // not a hand card; it anchors rather than links
             IgnoresHalfArmor = true,      // King-class

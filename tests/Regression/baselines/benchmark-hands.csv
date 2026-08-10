@@ -1,0 +1,24 @@
+# Regression procedure 1. Committed baseline - regenerate deliberately, never on failure.
+hand,rawOutput,entry,totalLeak
+natural-21,16.6400,0.0000,0
+hard-20,15.0000,0.0000,0
+soft-19,13.5800,0.0000,2
+hard-19,13.5800,0.0000,1
+hard-18,12.0900,0.0000,1
+soft-18,12.0900,0.0000,3
+hard-17,10.6800,0.0000,11
+soft-17,10.6800,0.0000,12
+hard-16-two,9.7750,0.0000,11
+hard-16-four,12.1900,4.0000,15
+hard-15,8.9100,0.0000,14
+hard-14,7.9800,0.0000,14
+hard-13,7.2000,0.0000,15
+hard-12,6.2700,0.0000,20
+low-8,4.7700,0.0000,27
+three-card-21,18.7200,0.0000,0
+four-card-21,20.4800,1.0000,1
+five-card-20,19.5000,7.5000,16
+five-card-21,20.4800,4.5000,2
+run-3-lane,10.1200,1.5000,19
+face-heavy-20,15.0000,0.0000,0
+ace-pair,6.0800,0.0000,20

@@ -313,23 +313,51 @@ public partial class BattlefieldView : Node2D
 
             for (int s = 0; s < tuning.Geometry.SocketPositions.Count; s++)
             {
-                DrawSocketSlot(SocketRef.InLane(lane, s));
+                DrawSocketSlot(SocketRef.InLane(lane, s), tuning);
             }
         }
 
-        DrawSocketSlot(SocketRef.Junction);
+        DrawSocketSlot(SocketRef.Junction, tuning);
 
         // Labelled at the left margin like the lanes, rather than under the slot where it would land
         // inside the next lane's band.
         Text("JUNCTION", new Vector2(x0 - Layout.BoardPadLeft + 8f, JunctionCentreY() + 4f), Palette.TextFaint, 11);
     }
 
-    private void DrawSocketSlot(SocketRef socket)
+    /// <summary>
+    /// An empty socket, captioned with the reach it confers.
+    /// </summary>
+    /// <remarks>
+    /// <b>Range varies by socket - 4.0, 3.0, 2.0 forward to rear - and that asymmetry is the entire
+    /// substance of the placement decision</b> (docs/design/05-battlefield.md; the geometry remedy for
+    /// Open Decision 2). Three identical squares state the opposite. The number is a raw input like
+    /// the lane's stake, not a judgement: it says what the socket is, never whether to use it.
+    /// </remarks>
+    private void DrawSocketSlot(SocketRef socket, TuningData tuning)
     {
         Vector2 centre = SocketCentre(socket);
         var slot = new Rect2(centre - new Vector2(SocketHalf, SocketHalf), SocketHalf * 2f, SocketHalf * 2f);
 
         DrawRect(slot, Palette.SocketEdge, filled: false, width: 1f);
+
+        // Only while empty: a placed tower covers this ground, and its own reach - which a face card
+        // extends - is read off the window drawn when the pointer rests on it.
+        if (_controller.Board.Towers.All(t => t.Socket != socket))
+        {
+            string caption = $"reach {TowerState.RangeFor(tuning, socket, faceCard: false):0.0}";
+
+            // The junction's caption goes beside the slot, not under it. The junction sits in the gap
+            // between two lane bands and there is no clear vertical room on either side of it -
+            // whichever way the caption goes it lands on a band's border. Sideways there is room.
+            if (socket.IsJunction)
+            {
+                Text(caption, centre + new Vector2(SocketHalf + 8f, 4f), Palette.TextFaint, 10);
+            }
+            else
+            {
+                CentredText(caption, centre + new Vector2(0f, SocketHalf + 15f), Palette.TextFaint, 10, LabelFont);
+            }
+        }
     }
 
     private void DrawEntry(WaveSession session)
@@ -362,6 +390,21 @@ public partial class BattlefieldView : Node2D
         double entryNext = entryNow + step;
         double path = tuning.Geometry.PathLength;
         float height = LaneHeight();
+
+        // The ground the step concedes outright, on every lane whether or not anything defends it.
+        // Shading only the windows of towers already placed made the first cards of a wave look free
+        // on the clock - the board was nearly empty, so there was nothing to shade - when they are
+        // exactly as expensive as the last ones. This is the march cost drawn on the lane, which is
+        // the form docs/design/09-information-and-ui.md requires; it is never summed into a number.
+        float groundLeft = PathToX(entryNow);
+        float groundRight = PathToX(Math.Min(entryNext, path));
+
+        for (int lane = 0; lane < tuning.Geometry.Lanes; lane++)
+        {
+            float cy = LaneCentreY(lane);
+            DrawRect(new Rect2(groundLeft, cy - (height / 2f) + 1f, groundRight - groundLeft, height - 2f),
+                Palette.ConcededGround);
+        }
 
         foreach (TowerState tower in _controller.Board.Towers)
         {
@@ -422,17 +465,62 @@ public partial class BattlefieldView : Node2D
         }
     }
 
-    /// <summary>The window a tower already on this socket covers, shown while the pointer rests on it.</summary>
+    /// <summary>
+    /// The window under the pointer: the one a tower here already covers, or the one the card in hand
+    /// would cover if it went here.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The prospective half is what makes range-by-socket legible at the moment it is being chosen.
+    /// Without it the player compares three identical squares while the sockets differ by a factor of
+    /// two in reach, and the decision the prototype exists to measure is being made blind.
+    /// </para>
+    /// <para>
+    /// It stays a readback of a gesture already under way - it needs a card actually in hand, either
+    /// the one awaiting placement or the one picked up mid-adjustment - so nothing is marked until the
+    /// player acts, and no socket is ever marked as the right one.
+    /// </para>
+    /// </remarks>
     private void DrawCoverage(SocketRef socket, TuningData tuning)
     {
-        TowerState? tower = _controller.Board.Towers.FirstOrDefault(t => t.Socket == socket);
-        if (tower is null)
+        if (_controller.Board.Towers.FirstOrDefault(t => t.Socket == socket) is { } tower)
+        {
+            DrawWindow(socket, tower.Range, tuning, Palette.Coverage, outline: null);
+            return;
+        }
+
+        if (CardInHand() is not { } card)
         {
             return;
         }
 
+        DrawWindow(socket, TowerState.RangeFor(tuning, socket, card.HasFaceCardRange), tuning,
+            Palette.ProspectiveFill, Palette.ProspectiveEdge);
+    }
+
+    /// <summary>
+    /// The card the current gesture would put down, or null when no gesture is in progress.
+    /// </summary>
+    private Card? CardInHand()
+    {
+        if (_interaction.PickedUp is { } picked)
+        {
+            return _controller.Board.Towers.FirstOrDefault(t => t.Socket == picked)?.Card;
+        }
+
+        // An Ace never has face-card reach at either value, so reading the rank alone is exact here.
+        return _controller.PendingRank is { } rank ? new Card(rank) : null;
+    }
+
+    /// <summary>Shades a socket's firing window across every lane it reaches.</summary>
+    private void DrawWindow(SocketRef socket, double range, TuningData tuning, Color fill, Color? outline)
+    {
+        double position = socket.IsJunction
+            ? tuning.Towers.JunctionPathPosition
+            : tuning.Geometry.SocketPositions[socket.SocketIndex];
+
         (double first, double last) = Engagement.WindowForSocket(
-            tower.PositionOn(tuning), tower.Range, _controller.Session.Entry, tuning.Geometry.PathLength);
+            position, range, _controller.Session.Entry, tuning.Geometry.PathLength);
 
         if (last <= first)
         {
@@ -440,12 +528,21 @@ public partial class BattlefieldView : Node2D
         }
 
         float height = LaneHeight();
+        IEnumerable<int> lanes = socket.IsJunction
+            ? Enumerable.Range(0, tuning.Geometry.Lanes)
+            : [socket.LaneIndex];
 
-        foreach (int lane in LanesOf(tower, tuning))
+        foreach (int lane in lanes)
         {
             float cy = LaneCentreY(lane);
-            DrawRect(new Rect2(PathToX(first), cy - (height / 2f) + 1f, PathToX(last) - PathToX(first), height - 2f),
-                Palette.Coverage);
+            var band = new Rect2(PathToX(first), cy - (height / 2f) + 1f, PathToX(last) - PathToX(first), height - 2f);
+
+            DrawRect(band, fill);
+
+            if (outline is { } edge)
+            {
+                DrawRect(band, edge, filled: false, width: 1.5f);
+            }
         }
     }
 
@@ -490,11 +587,21 @@ public partial class BattlefieldView : Node2D
 
             CentredText(RankGlyph(tower.Card), centre + new Vector2(0f, 6f), Palette.OnTower, 18, MonoFont);
 
+            // What the rank is actually worth. The power curve is sublinear and it plateaus at the
+            // top - a King is 5.0 against a 9's 4.7 - so the glyph alone reads as a much bigger
+            // spread than it is, and a face card looks like a damage upgrade when what it really buys
+            // is range and the junction exemption (docs/design/04-cards-as-defenses.md).
+            // Per lane, so a junction tower shows what lands here rather than what it fires in total.
+            // Below the hover and picked-up outlines, which sit at SocketHalf + 3 and would otherwise
+            // strike through the caption whenever the pointer is on the tower.
+            CentredText($"{tower.ShotDamageInLane(tuning):0.0}/shot",
+                centre + new Vector2(0f, 39f), Palette.TextDim, 10, LabelFont);
+
             // A carried-over tower runs at x1.00 while this hand's run higher: worth seeing on the
             // board, because it is why an old tower quietly stops mattering.
             if (Math.Abs(tower.FormationMultiplier - 1.0) < 1e-9)
             {
-                CentredText("carried", centre + new Vector2(0f, 34f), Palette.TextFaint, 10, LabelFont);
+                CentredText("carried", centre + new Vector2(0f, 51f), Palette.TextFaint, 10, LabelFont);
             }
 
             if (tower.RunBonus > 0.0)
@@ -512,8 +619,11 @@ public partial class BattlefieldView : Node2D
 
         DrawCircle(new Vector2(x, y), 13f, Palette.Vanguard);
 
+        // Named with its rank, not just as "the Vanguard": it is the Dealer's upcard, and a player
+        // counting the Dealer's hand is owed the card they can see (docs/design/06-dealer-and-enemies.md).
         // Labelled above the band, clear of the lane border and the entry line's own label.
-        CentredText("Vanguard", new Vector2(x, LaneCentreY(lane) - (LaneHeight() / 2f) - 8f), Palette.Vanguard, 11, LabelFont);
+        CentredText($"Vanguard  {RankGlyph(session.Vanguard)}",
+            new Vector2(x, LaneCentreY(lane) - (LaneHeight() / 2f) - 8f), Palette.Vanguard, 11, LabelFont);
     }
 
     // ---------------------------------------------------------------- playback
@@ -530,9 +640,42 @@ public partial class BattlefieldView : Node2D
             DrawEnemy(enemy, tuning);
         }
 
-        MonoText($"leaked {_frame.LeakedCount}   ({_frame.LeakDamageSoFar} damage)",
-            new Vector2(PathToX(0.0), LaneCentreY(tuning.Geometry.Lanes - 1) + (LaneHeight() / 2f) + 22f),
+        DrawLaneLeaks(tuning);
+
+        MonoText($"leaked {_frame.LeakedCount}   ({_frame.LeakDamageSoFar} damage in total)",
+            new Vector2(PathToX(0.0), LaneCentreY(tuning.Geometry.Lanes - 1) + (LaneHeight() / 2f) + 40f),
             Palette.TextDim, 13);
+    }
+
+    /// <summary>
+    /// Each lane's running damage against what the Final Forecast promised it.
+    /// </summary>
+    /// <remarks>
+    /// The contract is stated per lane - "Lane 0 takes 9 of 19" - so it has to be watchable per lane
+    /// to be checkable at all. One summed counter cannot be held against a promise that was never a
+    /// sum, and treating the lanes as interchangeable is the reading the design rejects
+    /// (docs/design/05-battlefield.md).
+    /// </remarks>
+    private void DrawLaneLeaks(TuningData tuning)
+    {
+        IReadOnlyList<LaneOutcome> promised = _controller.Forecast.Lanes;
+        float height = LaneHeight();
+        float right = PathToX(tuning.Geometry.PathLength);
+
+        foreach (LaneLeakProgress lane in _frame!.Lanes)
+        {
+            if (lane.LaneIndex >= promised.Count)
+            {
+                continue;
+            }
+
+            string text = $"took {lane.LeakDamage} of {promised[lane.LaneIndex].EmptyLaneDamage}";
+            float width = MonoFont?.GetStringSize(text, HorizontalAlignment.Left, -1f, 12).X ?? 0f;
+
+            MonoText(text,
+                new Vector2(right - width, LaneCentreY(lane.LaneIndex) + (height / 2f) + 16f),
+                Palette.TextDim, 12);
+        }
     }
 
     /// <summary>

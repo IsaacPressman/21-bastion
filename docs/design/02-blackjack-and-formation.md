@@ -43,7 +43,7 @@ The hand's final total sets a formation-wide multiplier applied to every tower p
 | **Bust** | **×0.80** |
 
 The curve spans 2.0×, against run links that can add roughly 35% to a well-placed board and an engagement
-range spanning 18.0 down to 6.0. **The hand matters most on any single card; the board and the clock
+range spanning 17.0 down to 5.0. **The hand matters most on any single card; the board and the clock
 matter more across a full formation.** That balance is the Placement Must Rival the Hand pillar stated
 qualitatively — it is not a computation. Balance is measured through the resolver, never by multiplying
 these factors together (`03-march-clock.md` § Total engagement is explanatory).

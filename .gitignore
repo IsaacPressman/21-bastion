@@ -29,6 +29,10 @@ data/*.local.json
 # Screenshots from the capture run (game/devtools/CaptureRun.cs). Regenerate, don't commit.
 .captures/
 
+# Per-session playtest logs (game/telemetry/PlaytestLog.cs). One file per session, generated.
+# The measurement CSVs alongside them in telemetry/ ARE tracked - they are results, not raw sessions.
+telemetry/sessions/
+
 # The Godot editor backs the project file up here before rewriting it - see the TargetFramework
 # comment in "21 Bastion.csproj". It reappears on its own; there is no point tracking or deleting it.
 *.csproj.old

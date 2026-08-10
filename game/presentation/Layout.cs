@@ -17,10 +17,12 @@ internal static class Layout
     internal const float HeaderHeight = 46f;
 
     /// <summary>
-    /// The action bar along the bottom. Tall enough for two rows of wrapped contextual buttons beside
-    /// the primary action, which is what keeps the primary action on screen at any board size.
+    /// The action bar along the bottom. Tall enough for the adjustment window's three rows - moves,
+    /// then standing orders over two - beside the primary action, which is what keeps the primary
+    /// action on screen at any board size. The board gives up the height and has it to spare: two
+    /// lanes at their capped height plus the junction gap need well under what is left.
     /// </summary>
-    internal const float ActionBarHeight = 156f;
+    internal const float ActionBarHeight = 190f;
 
     /// <summary>The information column down the right: the two consequence panels and the review.</summary>
     internal const float RightColumnWidth = 396f;

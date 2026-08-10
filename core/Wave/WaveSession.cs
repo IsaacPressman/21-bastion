@@ -294,6 +294,39 @@ public sealed record WaveSession
     }
 
     /// <summary>
+    /// The undefended cost of each lane against the revealed force.
+    /// </summary>
+    /// <remarks>
+    /// Legal before the Dealer resolves, which includes the moment before the opening deal - the point
+    /// docs/design/09-information-and-ui.md § Shown asks for it. Afterwards the Final Forecast carries
+    /// the same figure against the complete army, and that is the one to read.
+    /// </remarks>
+    public OpeningStakes OpeningStakes()
+    {
+        Require(DealerCards is null, "The Dealer has resolved; read empty-lane damage from the Final Forecast.");
+
+        double entry = Entry;
+
+        return Resolver.ResolveEmptyLanes(
+            Tuning, Encounter, ArmyBuilder.Revealed(Tuning, Encounter, Vanguard, entry), entry);
+    }
+
+    /// <summary>
+    /// The complete army, once the Dealer has resolved: everything that will walk in.
+    /// </summary>
+    /// <remarks>
+    /// § Shown asks for the "full army after the Dealer resolves, before lock". The Dealer's hand
+    /// <i>is</i> the army (docs/design/06-dealer-and-enemies.md), so the player who has been counting
+    /// it needs to see what it turned into before spending the adjustment move.
+    /// </remarks>
+    public CompleteArmy ResolvedArmy()
+    {
+        Require(DealerCards is not null, "The Dealer has not resolved yet; there is no complete army.");
+
+        return ArmyBuilder.Complete(Tuning, Encounter, DealerCards!, Entry);
+    }
+
+    /// <summary>
     /// The Final Forecast against the complete army: the combat contract. Reflects the current board,
     /// so it updates as the adjustment window changes it.
     /// </summary>
@@ -316,6 +349,17 @@ public sealed record WaveSession
 
     /// <summary>What the next card would cost in entry advance, before it is revealed.</summary>
     public double NextStepCost() => MarchClock.NextStepCost(Tuning, Draft.Hand.CardCount);
+
+    /// <summary>
+    /// This wave with a different shoe, for counterfactual analysis.
+    /// </summary>
+    /// <remarks>
+    /// Internal because it is not a move: nothing a player does replaces the shoe. It exists so the
+    /// oracle-tier instrumentation can ask "what if the next card were a 3?" by pairing this with
+    /// <see cref="Shoe.WithNextCard"/>, and then drive the resulting session through the ordinary
+    /// transitions rather than reimplementing them.
+    /// </remarks>
+    internal WaveSession WithShoe(Shoe shoe) => this with { Shoe = shoe };
 
     /// <summary>
     /// Ends the wave: reverts the surviving current-hand towers to ×1.00 for the next wave and

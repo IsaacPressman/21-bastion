@@ -4,13 +4,24 @@ A roguelite tower-defense game in which the player builds each wave's defenses b
 Every drawn card becomes a physical defense; the hand's total sets formation-wide power; the Dealer's
 hand is the army walking toward you.
 
-**Status: Milestone 3 complete.** The wave loop runs headless: the phase state machine
-(`core/Wave/WaveSession.cs`), the Dealer's draw-to-17, bust with the Overload strike, the one-move
-adjustment window, lane stakes, and persistence with ×1.00 reversion — all driving the Milestone 1 resolver
-and Milestone 2 producer unchanged in shape. `docs/design/example-wave.md` replays end to end
-(`tests/Wave/`). Milestone 4 (presentation) is next. **Open Decision 2 stands: deep placement is still
-weakly dominant (the margin held with run links modelled), so the socket geometry needs work before the
-march curve does — Milestone 3 deliberately did not touch it.** See `docs/ROADMAP.md`.
+**Status: Milestone 5 complete — the prototype is playable, instrumented, and ready to playtest.** The
+wave loop, the presentation layer, and the validation build are all in: three march arms and 17 scripted
+battery cases selectable at launch, per-state JSONL logging, the fifth-card measurement, and the four
+regression procedures as one filtered suite. `docs/design/example-wave.md` replays end to end
+(`tests/Wave/`). See `docs/ROADMAP.md`.
+
+**Two results from Milestone 5 that change what you should assume:**
+
+1. **Open Decision 2 is closed.** Deep placement was measured, confirmed dominant in every arm, and
+   remedied — **range now varies by socket (4.0 / 3.0 / 2.0, forward to rear)** rather than being one
+   flat 3.0. Socket positions are unchanged. **Uneven spacing, the design's first-named remedy, was
+   measured and does not work.** Engagement totals moved with it: full occupancy at entry 0 is **17.0,
+   not 18.0**, and the fifth card costs −71% rather than −67%. Any remembered engagement number from
+   before this is wrong.
+2. **The fifth card is not "functionally dead" in Arm C** by resolver output — it is still the better
+   play about half the time, with a clean crossover at 18. That does **not** settle the arm question:
+   the pre-committed reading needs the player half too, and the measurement conditions on the card being
+   safe, so it excludes the bust risk that is the real counterweight. See `docs/ROADMAP.md` § Milestone 5.
 
 **Current design revision: 7.1** — a correction pass over Revision 7, not a structural revision. It fixed
 an arithmetic error in the March Clock, reversed the stated direction of the march's placement bias,
@@ -53,7 +64,20 @@ dotnet test tests/Bastion.Core.Tests.csproj
 # Compiled out by default; must be a command-line global property to reach Bastion.Core.
 dotnet build "21 Bastion.sln" -p:BastionInstrumentation=true
 dotnet test tests/Bastion.Core.Tests.csproj -p:BastionInstrumentation=true
+
+# The four regression procedures as one suite (prototype/VALIDATION.md § Regression).
+# Run before touching the march curve, Formation Strength, run percentages, tower power,
+# Overload, or the resolver.
+dotnet test tests/Bastion.Core.Tests.csproj --filter Category=Regression
+
+# Golden baselines are regenerated DELIBERATELY and never on failure. This rewrites them and
+# then fails the run, so a regeneration cannot be mistaken for a pass.
+BASTION_REGEN_BASELINES=1 dotnet test tests/Bastion.Core.Tests.csproj --filter Category=Regression
 ```
+
+The instrumented measurement sweeps are slow on purpose and write to `telemetry/`:
+`fifth-card.csv` (~80 s, the primary measurement), `deep-placement*.csv`, `geometry-candidates.csv`,
+`shoe-simulation.csv`.
 
 ### Running Godot
 
@@ -70,6 +94,24 @@ Use the `_console` variant from a terminal — the plain one detaches and writes
 # Smoke test: loads tuning, builds the whole UI, runs the opening StateChanged, quits. No window.
 godot --headless --path . --quit-after 120
 ```
+
+### Playtest launch flags
+
+Milestone 5's done-when clause is that a session runs, logs, and analyzes **without code changes between
+arms**. Flags go after `--`, following the convention `CaptureRun` set, so they cannot collide with
+Godot's own. `--arm` rebuilds tuning immutably; it never writes the file.
+
+```bash
+godot --path . -- --arm B --fixture 2-split      # a scripted case on a chosen arm
+godot --path . -- --arm A --fixture 7-onlyrank-b # -b is the mirrored presentation
+godot --path . -- --arm C                        # no case named: the facilitator picker opens
+godot --path . -- --arm C --seed 4242            # free play on a chosen seed
+godot --path . -- --no-log                       # suppress the session log
+```
+
+Cases live in `data/battery.json`; an unknown id prints the full list. Sessions log one JSON line per
+offered state to `telemetry/sessions/` (gitignored). **The `oracle` key is absent unless the build was
+made with `-p:BastionInstrumentation=true`** — checking that round trip is how the gate is verified.
 
 ### Capture run — screenshots of every phase
 
@@ -177,6 +219,18 @@ Read the specific doc for the system you are touching. Do not work from memory o
 | `10-run-structure.md` | Regions, encounter budget, escalation, modes |
 | `example-wave.md` | A fully worked wave — use as an implementation acceptance test |
 
+**Validation build** — `core/Validation/`, `game/Startup/`, `game/telemetry/`
+
+| File | Covers |
+|---|---|
+| `core/Validation/BatteryFixture.cs` | A scripted case and the script that reaches its offered state |
+| `core/Validation/LaneMirror.cs` | Variant B: the same decision, lanes exchanged |
+| `core/Validation/SessionSnapshot.cs` | Reads an offered state into a loggable record. **Per socket, never summed** |
+| `core/Validation/Oracle.cs` | The three forbidden values, compiled out of a player build |
+| `game/Startup/LaunchOptions.cs` | `--arm`, `--fixture`, `--seed`, `--log-out`, `--no-log` |
+| `game/telemetry/PlaytestLog.cs` | JSONL per offered state, plus what only the interface knows |
+| `tests/Regression/` | The four regression procedures, tagged `Category=Regression` |
+
 **Steering** — `docs/`
 
 | File | Covers |
@@ -208,6 +262,15 @@ disagreement is a bug — flag it.
 
 ## Conventions
 
+- **Two data files, both validated at load.** `data/tuning.json` holds every number; `data/battery.json`
+  holds the scripted battery's cases, loaded by `core/Validation/BatteryLoader.cs`, which is modelled on
+  `TuningLoader` and fails just as loudly. **Only variant A of a case is authored** — variant B is
+  mirrored from it at load, because hand-authoring both halves is how two presentations quietly stop
+  being the same decision. The loader rejects an id ending in `-b`.
+- **Range varies by socket** (`geometry.rangeBySocket`), and the face-card allowance is a **bonus added
+  to it**, not an absolute. This is the Open Decision 2 remedy and it is load-bearing: a flat range is
+  what made deep placement dominant. `TowerState.RangeFor` is the one derivation — do not read
+  `rangeBySocket` at a call site.
 - **Numbers live in one place: `data/tuning.json`**, loaded and validated by
   `core/Config/TuningLoader.cs`, documented in `docs/reference/tuning-constants.md`. Never inline a
   tuning value at a call site. The loader rejects internally inconsistent files at load, including

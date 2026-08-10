@@ -1,6 +1,7 @@
 using System.Text;
 using Bastion.Core.Board;
 using Bastion.Core.Cards;
+using Bastion.Core.Config;
 using Bastion.Core.Hand;
 using Bastion.Core.Wave;
 using Godot;
@@ -90,7 +91,13 @@ public partial class HandPanel : PanelContainer
 
         var sb = new StringBuilder();
         sb.AppendLine($"Formation Strength  ×{session.FormationMultiplier:0.00}");
-        sb.AppendLine($"Board power         {towers.Sum(t => t.BasePower):0.0}");
+        sb.AppendLine($"Base power          {towers.Sum(t => t.BasePower):0.0}");
+
+        // Firing power is stated outright rather than left as base x multiplier for the player to
+        // work out, because on a mixed board that multiplication is simply wrong: a carried-over
+        // tower reverted to x1.00 at the wave boundary and does not take this hand's Formation
+        // Strength. Summing each tower's own resolved damage is the only figure that is true.
+        sb.AppendLine($"Firing power        {towers.Sum(t => t.ShotDamage):0.0}");
 
         int linked = towers.Count(t => t.RunBonus > 0.0);
         sb.Append(linked == 0
@@ -101,6 +108,7 @@ public partial class HandPanel : PanelContainer
 
         var notes = new StringBuilder();
         AppendAcePreview(notes, hand);
+        AppendJunctionNote(notes, towers);
         AppendOverloadNote(notes, session);
         _notes.Text = notes.ToString().TrimEnd();
         _notes.Visible = _notes.Text.Length > 0;
@@ -108,18 +116,44 @@ public partial class HandPanel : PanelContainer
         _composition.Text = CompositionLines(session);
     }
 
-    private static void AppendAcePreview(StringBuilder sb, HandState hand)
+    private void AppendAcePreview(StringBuilder sb, HandState hand)
     {
         if (!hand.Cards.Contains(Rank.Ace))
         {
             return;
         }
 
-        // Which way the Ace resolved is a battlefield consequence too: an 11 is a King-class tower, a
-        // 1 is a weak one. Show it before the player commits the next hit.
+        // § Shown asks for "Ace transformations and their power consequence, before commitment", and
+        // the consequence is the number: 5.4 to 1.0 is an 81% cut to that tower, which "a high-power
+        // tower" does not convey. The one place a blackjack event has an instant physical result
+        // (docs/design/04-cards-as-defenses.md § Aces).
+        CardPowerTuning power = _controller.Tuning.CardPower;
+
         sb.AppendLine(hand.IsSoft
-            ? "Ace counts as 11 — a high-power tower while the hand stays soft."
-            : "Ace counts as 1 — a further hit no longer flips it.");
+            ? $"Ace counts as 11 — {power.ForValue(11):0.0} base power. A hit that forces it to 1 "
+              + $"drops that tower to {power.ForValue(1):0.0}."
+            : $"Ace counts as 1 — {power.ForValue(1):0.0} base power. A further hit no longer flips it.");
+    }
+
+    /// <summary>
+    /// Says so when firing power overstates what actually lands, rather than quietly overstating it.
+    /// </summary>
+    /// <remarks>
+    /// A junction tower fires into both lanes at a reduced contribution each unless it is a face card,
+    /// so its full shot damage is never delivered to one lane. The figure above is per shot before
+    /// that reduction, which is the honest thing to sum but not the whole story.
+    /// </remarks>
+    private void AppendJunctionNote(StringBuilder sb, IReadOnlyList<TowerState> towers)
+    {
+        if (towers.FirstOrDefault(t => t.Socket.IsJunction) is not { } junction)
+        {
+            return;
+        }
+
+        sb.AppendLine(junction.ExemptFromJunctionPenalty
+            ? "The junction tower is a face card — it fires into both lanes at full contribution."
+            : $"Firing power is before the junction tower's split: it contributes "
+              + $"{_controller.Tuning.Towers.JunctionContributionFraction:P0} into each lane.");
     }
 
     private void AppendOverloadNote(StringBuilder sb, WaveSession session)

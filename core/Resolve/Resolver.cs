@@ -50,6 +50,37 @@ public static class Resolver
     }
 
     /// <summary>
+    /// What the revealed force does to lanes nobody is defending.
+    /// </summary>
+    /// <remarks>
+    /// The pre-deal reading: stakes are meaningless without the cost of ignoring them
+    /// (docs/design/09-information-and-ui.md § Shown). It runs the same lane simulation with an empty
+    /// board, so the number agrees with the <c>EmptyLaneDamage</c> the forecasts report rather than
+    /// being a second estimate of the same thing.
+    /// </remarks>
+    public static OpeningStakes ResolveEmptyLanes(
+        TuningData tuning,
+        EncounterTuning encounter,
+        RevealedArmy army,
+        double entry)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+        ArgumentNullException.ThrowIfNull(army);
+
+        WaveResolution resolution = Run(tuning, encounter, BoardState.Create(tuning, [], entry), army.Spawns);
+
+        return new OpeningStakes
+        {
+            Lanes = [.. resolution.Lanes.Select(l => new LaneBaseline
+            {
+                LaneIndex = l.LaneIndex,
+                Stake = l.Stake,
+                EmptyLaneDamage = l.EmptyLaneDamage,
+            })],
+        };
+    }
+
+    /// <summary>
     /// Resolves against the complete army. <b>This is the combat contract.</b>
     /// </summary>
     public static FinalForecast ResolveComplete(

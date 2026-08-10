@@ -81,16 +81,39 @@ public sealed record TowerState
             Family = family,
             Socket = socket,
             BasePower = tuning.CardPower.ForValue(card.Value),
-
-            // docs/design/04-cards-as-defenses.md: range 4.0 instead of 3.0 for value-10 cards.
-            Range = card.HasFaceCardRange ? tuning.Geometry.FaceCardRange : tuning.Geometry.DefaultRange,
-
+            Range = RangeFor(tuning, socket, card.HasFaceCardRange),
             FormationMultiplier = formationMultiplier,
             RunBonus = runBonus,
             IgnoresHalfArmor = family == Family.Spade || card.IsKing,
             ExemptFromJunctionPenalty = card.HasFaceCardRange && tuning.Towers.JunctionFaceCardExempt,
             Order = order ?? StandingOrder.None,
         };
+    }
+
+    /// <summary>
+    /// Firing range for a tower at <paramref name="socket"/>, the one derivation both construction
+    /// sites share.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Range varies by socket - the geometry remedy for deep-placement dominance
+    /// (docs/ROADMAP.md Open Decision 2). A junction tower takes the range of the socket whose
+    /// ground it shares, which is the same middle socket the loader pins
+    /// <c>towers.junctionPathPosition</c> to; deriving it rather than tuning it separately keeps the
+    /// junction's position and its reach from drifting apart.
+    /// </para>
+    /// <para>
+    /// The face-card allowance is added to the socket's range rather than replacing it
+    /// (docs/design/04-cards-as-defenses.md: value-10 cards see further).
+    /// </para>
+    /// </remarks>
+    public static double RangeFor(TuningData tuning, SocketRef socket, bool faceCard)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+
+        int index = socket.IsJunction ? tuning.Geometry.MiddleSocketIndex : socket.SocketIndex;
+
+        return tuning.Geometry.RangeBySocket[index] + (faceCard ? tuning.Geometry.FaceCardRangeBonus : 0.0);
     }
 
     /// <summary>

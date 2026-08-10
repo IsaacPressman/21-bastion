@@ -14,8 +14,22 @@
     "lanes": 2,
     "junctionSockets": 1,
     "defaultEntry": 0.0,
-    "defaultRange": 3.0,
-    "faceCardRange": 4.0
+    "$comment_range": [
+      "THE SOCKET-GEOMETRY REMEDY FOR OPEN DECISION 2. Range is per socket, indexed as",
+      "socketPositions is. A single flat range is what made deep placement weakly dominant: it gave",
+      "every socket an identical 6.0 window at entry 0, so advancement could only ever eat the",
+      "forward one - taxing forward placement rather than drawing.",
+      "Chosen by measurement, not assertion: tests/Measurement/DeepPlacementSweep.cs",
+      "Sweep_candidate_geometries swept nine candidates against a selection rule committed before",
+      "the numbers were read. Output in telemetry/geometry-candidates.csv. This profile cut the",
+      "worst-arm depth effect from -1.87 to +0.73 and gave the closest agreement between arms",
+      "(spread 0.33). Uneven socket spacing - the design's first-named remedy - was measured and does",
+      "NOT work: it left the margin unchanged or slightly worse.",
+      "faceCardRangeBonus is added to the socket's range, not substituted for it - an absolute",
+      "face-card range would SHORTEN a King at a long-ranged forward socket."
+    ],
+    "rangeBySocket": [4.0, 3.0, 2.0],
+    "faceCardRangeBonus": 1.0
   },
 
   "march": {
@@ -312,6 +326,82 @@
         [{ "enemyId": "armored_soldier", "count": 3 }],
         [{ "enemyId": "fast_raider", "count": 6 }]
       ]
+    },
+    {
+      "$comment": [
+        "ENCOUNTERS FOR THE SCRIPTED BATTERY (prototype/VALIDATION.md, data/battery.json).",
+        "Lane 0 is the one each case is built around; lane 1 is the contrast. Variant-B encounters",
+        "are NOT listed here - they are mirrored from these at load by Validation/LaneMirror.cs,",
+        "because hand-authoring both halves is how two presentations stop being the same decision.",
+        "Severity is set by leak damage undefended: armored_soldier leaks 2, fast_raider 1, swarm 1.",
+        "These counts are invented for the battery in the same sense as the rest of the encounter",
+        "block - see the Invented for the resolver section of reference/tuning-constants.md."
+      ],
+      "id": "battery_severe",
+      "vanguardLane": 1,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 5 }],
+        [{ "enemyId": "fast_raider", "count": 3 }]
+      ]
+    },
+    {
+      "$comment": "Same shape as battery_severe with a far lighter lane 0 - the mild half of item 1.",
+      "id": "battery_mild",
+      "vanguardLane": 1,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "swarm_unit", "count": 3 }],
+        [{ "enemyId": "fast_raider", "count": 3 }]
+      ]
+    },
+    {
+      "$comment": [
+        "The already-Held half of item 1. Same light lane 0 as battery_mild; what makes it Held is",
+        "the carried-over towers the fixture seats, not the encounter - Open/Held is a reading of",
+        "predicted against empty-lane damage (design/05-battlefield.md)."
+      ],
+      "id": "battery_held",
+      "vanguardLane": 1,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 3 }],
+        [{ "enemyId": "fast_raider", "count": 3 }]
+      ]
+    },
+    {
+      "$comment": "Even pressure in both lanes: the neutral board for cases that vary the hand, not the field.",
+      "id": "battery_even",
+      "vanguardLane": 0,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 3 }],
+        [{ "enemyId": "fast_raider", "count": 4 }]
+      ]
+    },
+    {
+      "$comment": [
+        "Item 6, the triage pair. battery_vault_first and battery_bastion_first are the SAME field",
+        "with the stakes exchanged, so any difference in how a player triages is the stake and",
+        "nothing else. Note this is not the lane mirror: the mirror swaps stakes AND waves together,",
+        "which preserves the decision; this swaps only the stakes, which changes it. That is the point."
+      ],
+      "id": "battery_vault_first",
+      "vanguardLane": 0,
+      "laneStakes": ["vault", "bastion"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 4 }],
+        [{ "enemyId": "fast_raider", "count": 4 }]
+      ]
+    },
+    {
+      "id": "battery_bastion_first",
+      "vanguardLane": 0,
+      "laneStakes": ["bastion", "vault"],
+      "baseWave": [
+        [{ "enemyId": "armored_soldier", "count": 4 }],
+        [{ "enemyId": "fast_raider", "count": 4 }]
+      ]
     }
   ],
 
@@ -330,6 +420,38 @@
     "K": "siege_engine",
     "A": "herald",
     "A_low": "herald_scout"
+  },
+
+  "$comment_shoePresets": [
+    "INVENTED FOR THE REGRESSION SUITE. prototype/VALIDATION.md step 3 says to simulate 10,000 hands",
+    "each for 'baseline, face-heavy, and many-card shoes' and never says what those compositions are.",
+    "These are first-pass and expected to be wrong; see the Invented for the resolver section of",
+    "reference/tuning-constants.md. Every preset holds the shoe at rules.shoeSize so that bust rate,",
+    "board width, and run frequency stay comparable between them - a preset of a different size would",
+    "change how often the shoe reshuffles, which is a second variable nobody asked for.",
+    "faceHeavy loads 10/J/Q/K to push toward short, powerful, easily-busted hands.",
+    "manyCard loads A-5 to make long hands reachable, which is the archetype the three arms exist to",
+    "disambiguate (VALIDATION.md, The secondary measurement)."
+  ],
+  "shoePresets": {
+    "baseline": {
+      "label": "Baseline - two of every rank",
+      "copiesByRank": null
+    },
+    "faceHeavy": {
+      "label": "Face-heavy - four of each ten-valued rank",
+      "copiesByRank": {
+        "A": 2, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1, "9": 1,
+        "10": 4, "J": 4, "Q": 4, "K": 4
+      }
+    },
+    "manyCard": {
+      "label": "Many-card - loaded with low ranks",
+      "copiesByRank": {
+        "A": 4, "2": 4, "3": 4, "4": 3, "5": 3, "6": 1, "7": 1, "8": 1, "9": 1,
+        "10": 1, "J": 1, "Q": 1, "K": 1
+      }
+    }
   },
 
   "rules": {

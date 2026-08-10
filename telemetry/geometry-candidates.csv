@@ -1,0 +1,43 @@
+# Candidate socket geometries against the deep-placement margin.
+# meanDeepMinusShallow < 0 means deep placement still wins. Nearest zero across all arms wins.
+candidate,positions,ranges,arm,shapesCompared,meanDeepMinusShallow,verdict
+control,3|6|9,3|3|3,A,15,-1.400,DEEP WINS
+control,3|6|9,3|3|3,B,15,-1.467,DEEP WINS
+control,3|6|9,3|3|3,C,15,-1.867,DEEP WINS
+range-soft,3|6|9,3.5|3|2.5,A,15,-0.400,DEEP WINS
+range-soft,3|6|9,3.5|3|2.5,B,15,-0.800,DEEP WINS
+range-soft,3|6|9,3.5|3|2.5,C,15,-0.733,DEEP WINS
+range-mid,3|6|9,4|3|2.5,A,15,-0.200,DEEP WINS
+range-mid,3|6|9,4|3|2.5,B,15,-0.667,DEEP WINS
+range-mid,3|6|9,4|3|2.5,C,15,-0.733,DEEP WINS
+range-hard,3|6|9,4|3|2,A,15,0.733,shallow wins
+range-hard,3|6|9,4|3|2,B,15,0.400,shallow wins
+range-hard,3|6|9,4|3|2,C,15,0.400,shallow wins
+range-steep,3|6|9,4.5|3|1.5,A,15,2.333,shallow wins
+range-steep,3|6|9,4.5|3|1.5,B,15,1.867,shallow wins
+range-steep,3|6|9,4.5|3|1.5,C,15,1.333,shallow wins
+spacing-forward,3|5|9,3|3|3,A,15,-1.200,DEEP WINS
+spacing-forward,3|5|9,3|3|3,B,15,-1.867,DEEP WINS
+spacing-forward,3|5|9,3|3|3,C,15,-2.000,DEEP WINS
+spacing-rear,3|7|9,3|3|3,A,15,-1.200,DEEP WINS
+spacing-rear,3|7|9,3|3|3,B,15,-1.133,DEEP WINS
+spacing-rear,3|7|9,3|3|3,C,15,-2.000,DEEP WINS
+forward-plus-range,3|5|9,4|3|2,A,15,0.933,shallow wins
+forward-plus-range,3|5|9,4|3|2,B,15,0.333,shallow wins
+forward-plus-range,3|5|9,4|3|2,C,15,0.200,shallow wins
+rear-plus-range,3|7|9,4|3|2,A,15,1.200,shallow wins
+rear-plus-range,3|7|9,4|3|2,B,15,0.800,shallow wins
+rear-plus-range,3|7|9,4|3|2,C,15,0.400,shallow wins
+
+# Selection rule, committed before reading: smallest worst-arm |depth effect|,
+# tie-break on the smaller spread between arms, rejecting strong shallow inversion.
+rank,candidate,worstArmAbsEffect,spreadBetweenArms,rejected
+1,range-hard,0.733,0.333,
+2,range-mid,0.733,0.533,
+3,range-soft,0.800,0.400,
+4,forward-plus-range,0.933,0.733,
+5,rear-plus-range,1.200,0.800,
+6,control,1.867,0.467,
+7,spacing-forward,2.000,0.800,
+8,spacing-rear,2.000,0.867,
+9,range-steep,2.333,1.000,shallow-inversion

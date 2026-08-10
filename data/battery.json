@@ -1,0 +1,311 @@
+{
+  "$comment": [
+    "THE SCRIPTED BATTERY. docs/prototype/VALIDATION.md lists ten states the playtest must offer.",
+    "Several name a CONTRAST rather than one state - 'hard 16 as 10+6 versus 3+3+5+5', 'a Dealer",
+    "showing a King versus a Dealer showing a 3' - so an item becomes one or more cases, and a case",
+    "is what a player is actually sat down in front of. batteryItem records which of the ten it serves.",
+    "",
+    "Only variant A is written here. Variant B is MIRRORED from it at load (core/Validation/LaneMirror.cs):",
+    "the two lanes swap wholesale and the opening deal order reverses, so the decision is isomorphic",
+    "and nothing on screen is the same. Hand-authoring both halves is exactly how two presentations",
+    "quietly stop being the same decision, so do not add a '-b' case here - the loader rejects it.",
+    "",
+    "cardOrder is the shoe, top first: the Dealer's upcard, the hole card, then the player's cards in",
+    "deal order, then whatever the Dealer draws to reach 17. It is fully scripted rather than seeded,",
+    "because no seed is guaranteed to produce a given hand and, for item 7, the remaining pile is",
+    "itself part of the state being offered.",
+    "",
+    "script runs before control is handed over; the state it ends in is the offered one, and the",
+    "loader-side claim about that is offeredAt, checked when the fixture opens.",
+    "Sockets are L<lane>S<index>, or J for the junction. Socket 0 is forward, 2 is rear."
+  ],
+
+  "fixtures": [
+    {
+      "$comment": "Item 1, severe. Hard 18 - the top of the live band - against a lane that will hurt.",
+      "id": "1-severe",
+      "batteryItem": 1,
+      "question": "Hard 18. Lane 1 is Open and severe. Hit or stand?",
+      "encounterId": "battery_severe",
+      "cardOrder": ["6", "10", "10", "8", "3", "9", "7", "5", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L0S2" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": "Item 1, mild. Identical hand and identical script; only the field is lighter.",
+      "id": "1-mild",
+      "batteryItem": 1,
+      "question": "Hard 18. Lane 1 is Open but mild. Hit or stand?",
+      "encounterId": "battery_mild",
+      "cardOrder": ["6", "10", "10", "8", "3", "9", "7", "5", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L0S2" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": [
+        "Item 1, already Held. The carried-over towers are what make lane 0 Held rather than the",
+        "encounter, so the player is reading their own past work rather than a lighter wave."
+      ],
+      "id": "1-held",
+      "batteryItem": 1,
+      "question": "Hard 18. Lane 0 is already Held. Hit or stand?",
+      "encounterId": "battery_held",
+      "cardOrder": ["6", "10", "10", "8", "3", "9", "7", "5", "K", "Q"],
+      "persisted": [
+        { "rank": "K", "family": "Club", "socket": "L0S0" },
+        { "rank": "9", "family": "Spade", "socket": "L0S1" }
+      ],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L1S1" },
+        { "action": "Place", "family": "Club", "socket": "L1S2" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": "Item 2, the two-card 16. Same total as 2-split, one tower and a free clock.",
+      "id": "2-tenplussix",
+      "batteryItem": 2,
+      "question": "Hard 16, as 10 + 6. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "10", "6", "4", "9", "8", "5", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": [
+        "Item 2, the four-card 16. The same blackjack decision against a completely different board:",
+        "four towers instead of two, and two march steps already paid. If a player treats these the",
+        "same way, the design's central claim about placement is in trouble."
+      ],
+      "id": "2-split",
+      "batteryItem": 2,
+      "question": "Hard 16, as 3 + 3 + 5 + 5. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "3", "3", "5", "5", "9", "8", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S0" },
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Hit" },
+        { "action": "Place", "family": "Spade", "socket": "L1S0" },
+        { "action": "Hit" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": "Item 3, soft. The Ace is high at 17 and drops to 1 on anything that would bust.",
+      "id": "3-soft17",
+      "batteryItem": 3,
+      "question": "Soft 17, as A + 6. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "A", "6", "4", "9", "8", "5", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": "Item 3, hard. Same total, no Ace, so a hit can bust where the soft hand cannot.",
+      "id": "3-hard17",
+      "batteryItem": 3,
+      "question": "Hard 17, as 10 + 7. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "10", "7", "4", "9", "8", "5", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": [
+        "Item 4, completing. A 4 is pending with 5 and 6 already sitting adjacent in lane 0, so",
+        "L0S0 turns a 2-run into a 3-run. Every other socket is worth more range or more lane cover.",
+        "Offered at AwaitingPlacement: the card is known and the question is purely where it goes."
+      ],
+      "id": "4-completes",
+      "batteryItem": 4,
+      "question": "A 4 to place. Lane 0 holds 5 and 6 adjacent - complete the run, or answer the other lane?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "5", "6", "2", "4", "9", "8", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L0S2" },
+        { "action": "Hit" },
+        { "action": "Place", "family": "Spade", "socket": "L1S0" },
+        { "action": "Hit" }
+      ],
+      "offeredAt": "AwaitingPlacement"
+    },
+    {
+      "$comment": "Item 4, not completing. Identical board; the pending 3 cannot extend the 5-6 pair.",
+      "id": "4-cannot",
+      "batteryItem": 4,
+      "question": "A 3 to place. Lane 0 holds 5 and 6 adjacent - but a 3 does not extend them. Where does it go?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "5", "6", "2", "3", "9", "8", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L0S2" },
+        { "action": "Hit" },
+        { "action": "Place", "family": "Spade", "socket": "L1S0" },
+        { "action": "Hit" }
+      ],
+      "offeredAt": "AwaitingPlacement"
+    },
+
+    {
+      "$comment": [
+        "Item 5, forced replacement. Every socket is taken by a carried-over tower and a 10 is",
+        "pending, so something the player built must go. The board is deliberately stocked so that",
+        "the socket the 10 most wants is held by a King - the best replacement is a GOOD tower.",
+        "Forced replacement is one of the three things decision density rests on, not a safety valve."
+      ],
+      "id": "5-capacity",
+      "batteryItem": 5,
+      "question": "A 10 to place and no empty socket. Which of your own towers goes?",
+      "encounterId": "battery_even",
+      "cardOrder": ["7", "10", "10", "6", "4", "9", "8", "5", "K", "Q"],
+      "persisted": [
+        { "rank": "K", "family": "Club", "socket": "L0S0" },
+        { "rank": "4", "family": "Club", "socket": "L0S1" },
+        { "rank": "3", "family": "Spade", "socket": "L0S2" },
+        { "rank": "K", "family": "Club", "socket": "L1S0" },
+        { "rank": "2", "family": "Spade", "socket": "L1S1" },
+        { "rank": "5", "family": "Spade", "socket": "L1S2" },
+        { "rank": "8", "family": "Club", "socket": "J" }
+      ],
+      "script": [],
+      "offeredAt": "AwaitingPlacement"
+    },
+
+    {
+      "$comment": "Item 6, Vault in the pressured lane. Same field as 6-bastion; only the stakes differ.",
+      "id": "6-vault",
+      "batteryItem": 6,
+      "question": "A marginal 15. The heavier lane is the Vault. Hit or stand?",
+      "encounterId": "battery_vault_first",
+      "cardOrder": ["8", "10", "10", "5", "4", "9", "7", "6", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": "Item 6, Bastion in the pressured lane.",
+      "id": "6-bastion",
+      "batteryItem": 6,
+      "question": "A marginal 15. The heavier lane is the Bastion. Hit or stand?",
+      "encounterId": "battery_bastion_first",
+      "cardOrder": ["8", "10", "10", "5", "4", "9", "7", "6", "K", "Q"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": [
+        "Item 7. At 18 the only 21 is a 3, and exactly one 3 remains in the pile. An Ace and a 2 are",
+        "left too - safe, but neither reaches 21 - so the choice is a real one rather than",
+        "all-or-nothing. Everything else in the pile busts. This is the case the rank display exists",
+        "for: risk as a reading skill, with no percentage anywhere (design/09-information-and-ui.md).",
+        "The pile is stated rather than searched for, which is why the battery is scripted not seeded."
+      ],
+      "id": "7-onlyrank",
+      "batteryItem": 7,
+      "question": "18, and exactly one 3 left in the pile. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["6", "10", "10", "8", "3", "A", "2", "K", "Q", "J", "9", "7"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": [
+        "Item 8, King up. The upcard is a unit standing on the field from the start, not a number:",
+        "a King is a siege engine - one body, 30 health, 2.0 armor, and 5 damage if it lands.",
+        "Same player hand as 8-three, so anything the player does differently is the Vanguard."
+      ],
+      "id": "8-king",
+      "batteryItem": 8,
+      "question": "Hard 16 against a Dealer showing a King. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["K", "7", "10", "6", "4", "9", "8", "5", "Q", "J"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+    {
+      "$comment": "Item 8, 3 up. A swarm pack: many fragile bodies, and a Dealer far from 17.",
+      "id": "8-three",
+      "batteryItem": 8,
+      "question": "Hard 16 against a Dealer showing a 3. Hit or stand?",
+      "encounterId": "battery_even",
+      "cardOrder": ["3", "7", "10", "6", "4", "9", "8", "5", "Q", "J"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Spade", "socket": "L1S1" }
+      ],
+      "offeredAt": "DrawDecision"
+    },
+
+    {
+      "$comment": [
+        "Item 9. The very first placement of the wave: family is locked here, permanently, and the",
+        "only thing known about the field is the base wave and one upcard. Club splash against the",
+        "swarm or Spade slow-and-armor-bypass against the soldiers is a bet on what the Dealer draws.",
+        "Empty script - the state is offered before anything has been committed."
+      ],
+      "id": "9-blindfamily",
+      "batteryItem": 9,
+      "question": "First card of the wave. Club or Spade - locked for good, before the army is known.",
+      "encounterId": "battery_even",
+      "cardOrder": ["9", "10", "7", "8", "4", "6", "5", "K", "Q", "J"],
+      "script": [],
+      "offeredAt": "AwaitingPlacement"
+    },
+
+    {
+      "$comment": [
+        "Item 10. The adjustment window, with the Dealer resolved and the whole army visible. One",
+        "move for the entire board: relocate one tower one socket, or swap two adjacent. The 6 and 7",
+        "sit adjacent in lane 0 as a 2-run while lane 1 is under-covered, so the move can protect the",
+        "link or answer the lane and not both. Standing orders are free and do not spend it."
+      ],
+      "id": "10-onemove",
+      "batteryItem": 10,
+      "question": "One move. Save the run link in lane 0, or answer lane 1 - not both.",
+      "encounterId": "battery_even",
+      "cardOrder": ["9", "10", "6", "7", "4", "8", "5", "K", "Q", "J"],
+      "script": [
+        { "action": "Place", "family": "Club", "socket": "L0S1" },
+        { "action": "Place", "family": "Club", "socket": "L0S2" },
+        { "action": "Hit" },
+        { "action": "Place", "family": "Spade", "socket": "L1S2" },
+        { "action": "Stand" }
+      ],
+      "offeredAt": "AdjustmentWindow"
+    }
+  ]
+}

@@ -8,8 +8,15 @@ Source: Handoff Revision 7.1, § 10.
 
 - **Two lanes**
 - **Three sockets per lane**, at path positions 3, 6, 9
-- **One shared junction socket**, firing into either lane at reduced contribution
+- **Range differs by socket** — 4.0, 3.0, 2.0, forward to rear
+- **One shared junction socket**, firing into either lane at reduced contribution, at the middle socket's
+  position and therefore its range
 - **Seven sockets total**
+
+Range is not uniform, and the asymmetry is load-bearing. A flat range gave every socket an identical
+engagement window, which made deep placement weakly dominant the moment the march began; forward sockets
+now open wider and have more to lose. See `03-march-clock.md` § Deep placement was weakly dominant, and
+the geometry was fixed.
 
 **Socket adjacency is linear within a lane** — 3–6 and 6–9 are adjacent, 3–9 is not — with **no cross-lane
 adjacency**, and **the junction adjacent to neither lane**. The junction is a *run island*: it buys breadth

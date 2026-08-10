@@ -21,8 +21,11 @@ public sealed class TuningDataTests
     {
         Assert.Equal(12.0, Tuning.Geometry.PathLength);
         Assert.Equal([3.0, 6.0, 9.0], Tuning.Geometry.SocketPositions);
-        Assert.Equal(3.0, Tuning.Geometry.DefaultRange);
-        Assert.Equal(4.0, Tuning.Geometry.FaceCardRange);
+        Assert.Equal([4.0, 3.0, 2.0], Tuning.Geometry.RangeBySocket);
+        Assert.Equal(1.0, Tuning.Geometry.FaceCardRangeBonus);
+
+        // The junction shares the middle socket's ground, so it shares its reach.
+        Assert.Equal(1, Tuning.Geometry.MiddleSocketIndex);
 
         // Two lanes of three, plus the shared junction.
         Assert.Equal(7, Tuning.Geometry.TotalSockets);

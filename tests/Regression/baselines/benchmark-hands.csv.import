@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c618bhj6uu7xw"
+
+[deps]
+
+files=["res://tests/Regression/baselines/benchmark-hands. never on failure..translation"]
+
+source_file="res://tests/Regression/baselines/benchmark-hands.csv"
+dest_files=["res://tests/Regression/baselines/benchmark-hands. never on failure..translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -96,6 +96,7 @@ public sealed class EnumerationTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void Every_legal_non_bust_hand_has_a_sane_raw_output_and_entry()
     {
         Dictionary<string, (double Raw, double Entry)> records = Enumerate();
@@ -110,6 +111,7 @@ public sealed class EnumerationTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void The_enumeration_is_deterministic()
     {
         // Byte-identical output for identical input is the core's central promise (ARCHITECTURE.md).
@@ -117,6 +119,7 @@ public sealed class EnumerationTests
     }
 
     [Theory]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     [InlineData(9.775, 0.0, Rank.Ten, Rank.Six)]                                        // 16
     [InlineData(12.19, 4.0, Rank.Three, Rank.Three, Rank.Five, Rank.Five)]              // 16, deeper
     [InlineData(15.00, 0.0, Rank.King, Rank.Queen)]                                     // 20

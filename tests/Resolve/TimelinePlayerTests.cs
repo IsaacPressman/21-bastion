@@ -70,6 +70,42 @@ public sealed class TimelinePlayerTests
             end.LeakDamageSoFar);
     }
 
+    /// <summary>
+    /// The per-lane split is what the combat screen shows against a contract stated per lane, so it
+    /// has to reproduce the forecast lane by lane - not merely add up to the same total.
+    /// </summary>
+    [Fact]
+    public void Playback_reproduces_the_forecasts_leak_ledger_lane_by_lane()
+    {
+        FinalForecast forecast = Forecast();
+        PlaybackFrame end = Player(forecast).FrameAt(forecast.Timeline.DurationSeconds);
+
+        Assert.Equal(Fixture.Tuning.Geometry.Lanes, end.Lanes.Count);
+
+        foreach (LaneOutcome lane in forecast.Lanes)
+        {
+            LaneLeakProgress played = end.Lanes[lane.LaneIndex];
+
+            Assert.Equal(lane.LaneIndex, played.LaneIndex);
+            Assert.Equal(lane.LeakedUnits.Count, played.LeakedCount);
+            Assert.Equal(lane.LeakedUnits.Sum(u => u.LeakDamage), played.LeakDamage);
+        }
+
+        // And the split is a split, not a second tally alongside the first.
+        Assert.Equal(end.LeakedCount, end.Lanes.Sum(l => l.LeakedCount));
+        Assert.Equal(end.LeakDamageSoFar, end.Lanes.Sum(l => l.LeakDamage));
+    }
+
+    /// <summary>A lane that held reports a zero rather than dropping out of the readout.</summary>
+    [Fact]
+    public void Every_lane_appears_at_every_instant_including_before_anything_leaks()
+    {
+        PlaybackFrame opening = Player(Forecast()).FrameAt(0.0);
+
+        Assert.Equal(Fixture.Tuning.Geometry.Lanes, opening.Lanes.Count);
+        Assert.All(opening.Lanes, lane => Assert.Equal(0, lane.LeakDamage));
+    }
+
     [Fact]
     public void The_leak_count_never_decreases_as_the_cursor_advances()
     {

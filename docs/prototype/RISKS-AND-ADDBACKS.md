@@ -83,17 +83,23 @@ This is the single most likely place for stale guidance to cause damage — the 
 plausibly in both directions. The target shape is in `../design/03-march-clock.md` § The fifth card is a
 hypothesis; the measurement is the primary output of the test arms.
 
-## Deep placement dominates
+## Deep placement dominates — ✅ measured, confirmed, remedied
 
 Because entry advances from the spawn side, **every unit of advancement degrades forward sockets while
-leaving rear ones untouched** — so deep placement is weakly dominant whenever entry exceeds 0.
+leaving rear ones untouched** — so deep placement was weakly dominant whenever entry exceeded 0.
 
-**A mechanic added to enrich placement may be flattening it.**
+**A mechanic added to enrich placement was flattening it.**
 
-Measured through **placement-depth logging**. If it holds, **fix the socket geometry — uneven spacing,
-range differences by position, or lane-specific leak thresholds — before touching the march curve.**
+Measured through the resolver sweep rather than left to playtest, confirmed in all three arms, and
+remedied at Milestone 5 by **range differences by position** (4.0 / 3.0 / 2.0, forward to rear). The march
+curve was not touched. Full result in `../ROADMAP.md` § Open Decision 2.
 
-Flagged in `../design/03-march-clock.md`. This is the first thing to measure once the resolver runs.
+**Note for anyone revisiting this:** of the three remedies named above, **uneven spacing was measured and
+does not work.** Lane-specific leak thresholds remain untried, but they change what a lane is worth rather
+than what a socket is worth, so they are not a depth remedy.
+
+The residual is a mild *shallow* lean, largest in the flat control arm. **Placement-depth logging stays
+in the instrumentation set** to watch it.
 
 ## Locking family is too punishing
 

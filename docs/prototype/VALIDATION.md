@@ -123,7 +123,53 @@ seeing the data.
 
 ---
 
+## How to run it
+
+Built at Milestone 5. Arms and cases are selected at launch; nothing here needs a rebuild between them.
+
+```bash
+# A scripted case on a chosen arm. Flags go after -- so they cannot collide with Godot's own.
+godot --path . -- --arm B --fixture 2-split
+godot --path . -- --arm A --fixture 7-onlyrank-b        # -b is the mirrored presentation
+godot --path . -- --arm C                               # no case named: the facilitator picker opens
+godot --path . -- --arm C --seed 4242                   # free play on a chosen seed
+godot --path . -- --no-log                              # suppress the session log
+```
+
+**Cases.** The ten items above name contrasts as well as states, so they expand to 17 cases — ids like
+`1-severe`, `2-split`, `8-king` — each with a generated `-b` mirror. `data/battery.json` is the source;
+an unknown id prints the full list. Variant B swaps the two lanes wholesale and reverses the opening
+deal, so the decision is identical and nothing on screen is.
+
+**Logs.** One JSONL file per session at `telemetry/sessions/<utc>-arm<X>-<case>.jsonl`, one line per
+offered state, carrying the state as offered and the choice that closed it. Gitignored — these are raw
+sessions, not results.
+
+**The oracle tier is absent unless asked for.** Bust probability, expected output, and combined utility
+are compiled out; build with `-p:BastionInstrumentation=true` and they appear under an `oracle` key.
+Confirming that round trip is how the gate is verified to be real rather than remembered.
+
+**Measurements** (all `-p:BastionInstrumentation=true`, all writing to `telemetry/`):
+
+| Sweep | Output |
+|---|---|
+| `FifthCardOutcomeSweep` | `fifth-card.csv` — the primary measurement. Slow, ~80 s. |
+| `DeepPlacementSweep` | `deep-placement.csv`, `deep-placement-runs.csv`, `geometry-candidates.csv` |
+| `ShoeSimulation` | `shoe-simulation.csv` |
+
+---
+
 ## Regression
+
+Runnable as one suite:
+
+```bash
+dotnet test tests/Bastion.Core.Tests.csproj --filter Category=Regression
+```
+
+Golden baselines live in `tests/Regression/baselines/` and are **regenerated deliberately, never on
+failure** — `BASTION_REGEN_BASELINES=1`, which rewrites them and then fails the run so a regeneration
+cannot be mistaken for a pass.
 
 **Before changing the march curve, Formation Strength, run percentages, tower power, Overload, or the
 resolver:**

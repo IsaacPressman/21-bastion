@@ -223,6 +223,57 @@ public sealed class TuningValidationTests
     }
 
     [Fact]
+    public void Rejects_a_range_list_that_does_not_cover_every_socket()
+    {
+        // rangeBySocket is indexed by socket, so a short list is an index off the end waiting to
+        // happen - at whichever socket the player happens to pick.
+        string json = ValidJsonWith("\"rangeBySocket\": [4.0, 3.0, 2.0]", "\"rangeBySocket\": [4.0, 3.0]");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("rangeBySocket", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_socket_that_cannot_reach_the_path()
+    {
+        string json = ValidJsonWith("\"rangeBySocket\": [4.0, 3.0, 2.0]", "\"rangeBySocket\": [4.0, 0.0, 2.0]");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("rangeBySocket", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_a_face_card_allowance_that_would_shorten_range()
+    {
+        // Face cards see further (docs/design/04-cards-as-defenses.md). A negative bonus would
+        // quietly invert that rule now that the allowance is added rather than substituted.
+        string json = ValidJsonWith("\"faceCardRangeBonus\": 1.0", "\"faceCardRangeBonus\": -1.0");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("faceCardRangeBonus", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rejects_socket_positions_that_do_not_ascend()
+    {
+        // Two readings of "the middle socket" exist - by index and by sorted position - and they
+        // agree only while the list ascends. Uneven spacing makes this easy to get wrong, so the
+        // dependency is checked rather than assumed.
+        string json = ValidJsonWith("\"socketPositions\": [3.0, 6.0, 9.0]", "\"socketPositions\": [3.0, 9.0, 6.0]");
+
+        TuningValidationException ex = Assert.Throws<TuningValidationException>(
+            () => TuningLoader.Load(Json(json)));
+
+        Assert.Contains("ascend", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Reports_a_missing_file_with_the_full_path()
     {
         TuningValidationException ex = Assert.Throws<TuningValidationException>(

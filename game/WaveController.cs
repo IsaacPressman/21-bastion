@@ -2,6 +2,7 @@ using Bastion.Core.Board;
 using Bastion.Core.Cards;
 using Bastion.Core.Config;
 using Bastion.Core.Resolve;
+using Bastion.Core.Validation;
 using Bastion.Core.Wave;
 using Godot;
 
@@ -44,6 +45,20 @@ public partial class WaveController : Node
     [Signal]
     public delegate void StateChangedEventHandler();
 
+    /// <summary>
+    /// A move the player tried to make and the core refused.
+    /// </summary>
+    /// <remarks>
+    /// This is the <b>wanted-move</b> instrumentation. VALIDATION.md asks for
+    /// "adjustment-window usage, including which move was <i>wanted</i> where the interface can
+    /// capture it", with a pre-committed reading: players consistently wanting two moves opens the
+    /// relic path, and never using the window at all makes it a candidate for deletion. A second
+    /// attempt inside the adjustment window is precisely that signal, and the core already announces
+    /// it by refusing - so the refusal is surfaced rather than swallowed.
+    /// </remarks>
+    [Signal]
+    public delegate void MoveRejectedEventHandler(string intent, string reason);
+
     /// <summary>The tuning this run uses. Loaded once by the composition root and passed in.</summary>
     public TuningData Tuning { get; private set; } = null!;
 
@@ -52,6 +67,16 @@ public partial class WaveController : Node
 
     /// <summary>The current wave. Set by <see cref="Configure"/> before any view reads it.</summary>
     public WaveSession Session { get; private set; } = null!;
+
+    /// <summary>
+    /// The battery case this session is running, or null for free play.
+    /// </summary>
+    /// <remarks>
+    /// Held so the log can name the state a decision was made in - "the choice made" is only
+    /// interpretable against the state it was offered in (docs/prototype/VALIDATION.md
+    /// § Instrumentation). No view reads it; it is not player-facing information.
+    /// </remarks>
+    public BatteryFixture? Fixture { get; private set; }
 
     /// <summary>The Open/Held threshold, read once from tuning.</summary>
     public double Threshold => Tuning.Rules.OpenHeldThresholdFraction;
@@ -78,25 +103,51 @@ public partial class WaveController : Node
         SetSession(WaveSession.Begin(tuning, encounter, Shoe.Create(tuning, seed)));
     }
 
+    /// <summary>
+    /// Opens a scripted battery case instead of a seeded wave.
+    /// </summary>
+    /// <remarks>
+    /// The case runs its own script to the state it offers and hands control over there, so the
+    /// player meets the decision rather than playing up to it. Its cards are scripted, so the seed
+    /// is irrelevant - the fixture states the pile because for some cases the pile <i>is</i> the
+    /// state (docs/prototype/VALIDATION.md § Scripted battery).
+    /// </remarks>
+    public void ConfigureFromFixture(TuningData tuning, BatteryFixture fixture)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        Tuning = tuning;
+        Encounter = tuning.Encounter(fixture.EncounterId);
+        Fixture = fixture;
+        _seed = 0;
+
+        SetSession(fixture.Open(tuning));
+    }
+
     /// <summary>The rank waiting to be placed, or null when none is pending.</summary>
     public Rank? PendingRank =>
         Session.Phase == WavePhase.AwaitingPlacement && Session.PendingRanks.Count > 0
             ? Session.PendingRanks[0]
             : null;
 
-    public void Place(Family family, SocketRef socket) => Apply(s => s.Place(family, socket));
+    public void Place(Family family, SocketRef socket) =>
+        Apply(s => s.Place(family, socket), $"place {family} at {socket}");
 
-    public void Hit() => Apply(s => s.Hit());
+    public void Hit() => Apply(s => s.Hit(), "hit");
 
-    public void Stand() => Apply(s => s.Stand());
+    public void Stand() => Apply(s => s.Stand(), "stand");
 
-    public void Relocate(SocketRef from, SocketRef to) => Apply(s => s.RelocateTower(from, to));
+    public void Relocate(SocketRef from, SocketRef to) =>
+        Apply(s => s.RelocateTower(from, to), $"relocate {from} to {to}");
 
-    public void Swap(SocketRef a, SocketRef b) => Apply(s => s.SwapTowers(a, b));
+    public void Swap(SocketRef a, SocketRef b) =>
+        Apply(s => s.SwapTowers(a, b), $"swap {a} with {b}");
 
-    public void SetOrder(SocketRef socket, StandingOrder order) => Apply(s => s.SetStandingOrder(socket, order));
+    public void SetOrder(SocketRef socket, StandingOrder order) =>
+        Apply(s => s.SetStandingOrder(socket, order), $"order {socket}: {order}");
 
-    public void Lock() => Apply(s => s.Lock());
+    public void Lock() => Apply(s => s.Lock(), "lock");
 
     /// <summary>Settles the finished wave and opens the next, carrying towers and the shoe forward.</summary>
     public void SettleAndBeginNextWave()
@@ -114,7 +165,7 @@ public partial class WaveController : Node
     /// through a Godot signal handler - and because the transition is applied only on success, the
     /// session is never left half-changed.
     /// </remarks>
-    private void Apply(Func<WaveSession, WaveSession> transition)
+    private void Apply(Func<WaveSession, WaveSession> transition, string intent)
     {
         WaveSession next;
 
@@ -125,6 +176,7 @@ public partial class WaveController : Node
         catch (InvalidOperationException ex)
         {
             GD.PrintErr($"[21 Bastion] Move rejected by the core: {ex.Message}");
+            EmitSignal(SignalName.MoveRejected, intent, ex.Message);
             return;
         }
 

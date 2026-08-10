@@ -1,7 +1,9 @@
 using Bastion.Core.Config;
 using Bastion.Core.Diagnostics;
+using Bastion.Core.Validation;
 using Bastion.Game.Input;
 using Bastion.Game.Presentation;
+using Bastion.Game.Startup;
 using Godot;
 
 namespace Bastion.Game;
@@ -38,15 +40,24 @@ public partial class Bootstrap : Node2D
 
     public override void _Ready()
     {
+        LaunchOptions options = LaunchOptions.FromCommandLine();
+
         TuningData tuning;
+        Battery battery;
         try
         {
             tuning = TuningLoader.Load(ProjectSettings.GlobalizePath($"res://{TuningLoader.DefaultRelativePath}"));
+            battery = BatteryLoader.Load(ProjectSettings.GlobalizePath($"res://{BatteryLoader.DefaultRelativePath}"));
+
+            // The battery's mirrored encounters are derived, not authored, so they only exist once
+            // merged in. Do this before selecting the arm so both edits land on the same value.
+            tuning = battery.Apply(tuning);
+            tuning = SelectArm(tuning, options.Arm);
         }
         catch (TuningValidationException ex)
         {
             // Tuning is hand-edited between playtests; a typo must fail loudly, not resolve oddly later.
-            GD.PrintErr($"[21 Bastion] Tuning data rejected:\n{ex.Message}");
+            GD.PrintErr($"[21 Bastion] Data rejected:\n{ex.Message}");
             return;
         }
 
@@ -59,10 +70,35 @@ public partial class Bootstrap : Node2D
             GD.Print("[21 Bastion] Oracle-tier instrumentation is COMPILED IN. Not a player build.");
         }
 
-        BuildAndWire(tuning);
+        BuildAndWire(tuning, battery, options);
     }
 
-    private void BuildAndWire(TuningData tuning)
+    /// <summary>
+    /// Applies <c>--arm</c> by rebuilding tuning, never by writing the file.
+    /// </summary>
+    /// <remarks>
+    /// The arms are presets in one config file, not three builds
+    /// (docs/prototype/VALIDATION.md § Test arms), so switching is a different read of the same
+    /// data. Returning a new value rather than mutating keeps tuning immutable all the way down,
+    /// which is what lets the measurement sweeps hold several arms at once.
+    /// </remarks>
+    private static TuningData SelectArm(TuningData tuning, string? arm)
+    {
+        if (arm is null || arm == tuning.March.ActivePreset)
+        {
+            return tuning;
+        }
+
+        if (!tuning.MarchPresets.ContainsKey(arm))
+        {
+            throw new TuningValidationException(
+                $"--arm '{arm}' is not one of: {string.Join(", ", tuning.MarchPresets.Keys.Order(StringComparer.Ordinal))}.");
+        }
+
+        return tuning with { March = tuning.March with { ActivePreset = arm } };
+    }
+
+    private void BuildAndWire(TuningData tuning, Battery battery, LaunchOptions options)
     {
         var controller = new WaveController { Name = "WaveController" };
         AddChild(controller);
@@ -103,13 +139,78 @@ public partial class Bootstrap : Node2D
         phaseControls.Bind(controller, interaction);
         playback.Bind(controller, battlefield, postWave);
 
-        controller.Configure(tuning, tuning.Encounter(EncounterId), Seed);
+        // Attached before the first wave so the opening state is logged like any other, and after
+        // the playback view exists so it can hear how combat was consumed.
+        if (Telemetry.PlaytestLog.Attach(this, controller, options.LogDirectory, options.Logging) is { } log)
+        {
+            playback.PlaybackFinished += log.RecordPlayback;
+            GD.Print($"[21 Bastion] Session log: {options.LogDirectory}");
+        }
+
+        Start(root, controller, tuning, battery, options);
 
 #if BASTION_DEVTOOLS
         // Absent from a normal build, and inert in a dev build unless --capture is passed. The
         // composition root is the only place holding the wired-up nodes it needs.
-        DevTools.CaptureRun.AttachIfRequested(this, controller, battlefield);
+        DevTools.CaptureRun.AttachIfRequested(this, controller, battlefield, root, battery);
 #endif
+    }
+
+    /// <summary>
+    /// Opens the wave the launch options asked for, or the picker when they did not ask for one.
+    /// </summary>
+    /// <remarks>
+    /// The picker is a facilitator screen and is gone before the first card is dealt, so the views
+    /// below it simply have not seen a <c>StateChanged</c> yet - which they already tolerate, since
+    /// they are driven by that signal rather than polling.
+    /// </remarks>
+    private static void Start(
+        Control root, WaveController controller, TuningData tuning, Battery battery, LaunchOptions options)
+    {
+        if (options.FixtureId is { } id)
+        {
+            if (battery.Find(id) is not { } fixture)
+            {
+                GD.PrintErr($"[21 Bastion] No battery case '{id}'. Known cases: "
+                            + string.Join(", ", battery.Fixtures.Select(f => f.Id)));
+                return;
+            }
+
+            GD.Print($"[21 Bastion] Battery case {fixture.Id} (item {fixture.BatteryItem}): {fixture.Question}");
+            controller.ConfigureFromFixture(tuning, fixture);
+            return;
+        }
+
+        if (options.SkipPicker)
+        {
+            GD.Print($"[21 Bastion] Free play on arm {tuning.March.ActivePreset}, seed {options.Seed}.");
+            controller.Configure(tuning, tuning.Encounter(EncounterId), options.Seed);
+            return;
+        }
+
+        FixturePicker? picker = null;
+
+        picker = new FixturePicker(tuning, battery, tuning.March.ActivePreset, (arm, fixture) =>
+        {
+            TuningData chosen = SelectArm(tuning, arm);
+
+            if (fixture is null)
+            {
+                GD.Print($"[21 Bastion] Free play on arm {arm}, seed {options.Seed}.");
+                controller.Configure(chosen, chosen.Encounter(EncounterId), options.Seed);
+            }
+            else
+            {
+                GD.Print($"[21 Bastion] Battery case {fixture.Id} on arm {arm}: {fixture.Question}");
+                controller.ConfigureFromFixture(chosen, fixture);
+            }
+
+            // Freed rather than hidden: a facilitator screen must not be able to linger over a wave,
+            // and nothing needs it again - a second case means a fresh launch.
+            picker!.QueueFree();
+        });
+
+        root.AddChild(picker);
     }
 
     private static PhaseHeader BuildHeader(Control root)

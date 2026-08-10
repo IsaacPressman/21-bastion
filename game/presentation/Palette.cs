@@ -36,7 +36,14 @@ internal static class Palette
     internal static readonly Color SocketPicked = new("d8c26a");
     internal static readonly Color Entry = new("c95d5d");
     internal static readonly Color LostWindow = new(0.79f, 0.36f, 0.36f, 0.26f);
+    internal static readonly Color ConcededGround = new(0.79f, 0.36f, 0.36f, 0.10f);
     internal static readonly Color Coverage = new(0.42f, 0.62f, 0.78f, 0.16f);
+
+    // A window a tower does not have yet. Drawn as an outline against Coverage's fill so a reach the
+    // player is considering never reads as one they already own - it is the same hue, not a warmer or
+    // cooler one, because it is the same kind of fact and carries no verdict either way.
+    internal static readonly Color ProspectiveFill = new(0.42f, 0.62f, 0.78f, 0.07f);
+    internal static readonly Color ProspectiveEdge = new(0.52f, 0.72f, 0.88f, 0.55f);
 
     // Families.
     internal static readonly Color Club = new("d08a3e");

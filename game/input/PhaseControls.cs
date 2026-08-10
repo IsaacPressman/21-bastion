@@ -114,11 +114,15 @@ public partial class PhaseControls : HBoxContainer
         foreach (SocketRef socket in AllSockets(_controller.Tuning))
         {
             TowerState? held = board.Towers.FirstOrDefault(t => t.Socket == socket);
+
+            // What a replacement costs, in the units it costs it in. "Replaces 2" and "replaces 9"
+            // read as the same move and are not remotely the same move - what a card displaces is
+            // one of the three clauses of the design's claim, so it is worth a number.
             var button = new Button
             {
                 Text = held is null
                     ? Describe(socket)
-                    : $"{Describe(socket)} — replaces {RankLabel(held.Card.Rank)}",
+                    : $"{Describe(socket)} — replaces {RankLabel(held.Card.Rank)} ({held.ShotDamage:0.0})",
             };
 
             SocketRef captured = socket;
@@ -193,14 +197,25 @@ public partial class PhaseControls : HBoxContainer
             _contextual.AddChild(Caption("MOVE SPENT — standing orders are still free"));
         }
 
-        HFlowContainer orders = Group("STANDING ORDERS  (free)");
+        HFlowContainer orders = Group("STANDING ORDERS  (free, now → next)");
 
         foreach (TowerState tower in board.Towers)
         {
-            var button = new Button { Text = $"{Describe(tower.Socket)}: {OrderLabel(tower.Order)}" };
-            TowerState captured = tower;
-            button.Pressed += () =>
-                _controller.SetOrder(captured.Socket, NextOrder(captured.Order, captured, tuning));
+            StandingOrder next = NextOrder(tower.Order, tower, tuning);
+
+            // Both states on the face of the button, and what the next one means in the tooltip. A
+            // cycle of five that names only where it currently is leaves the player clicking through
+            // to find out - which, in a facilitated session, logs as a preference they never had.
+            // The explanation is a tooltip rather than a paragraph because the action bar is a fixed
+            // height and the primary action has to stay in it.
+            var button = new Button
+            {
+                Text = $"{Describe(tower.Socket)}: {OrderLabel(tower.Order)} → {OrderLabel(next)}",
+                TooltipText = Explain(next),
+            };
+
+            SocketRef socket = tower.Socket;
+            button.Pressed += () => _controller.SetOrder(socket, next);
             orders.AddChild(button);
         }
 
@@ -245,7 +260,32 @@ public partial class PhaseControls : HBoxContainer
         };
         column.AddChild(family);
 
+        var power = new Label
+        {
+            Text = pending is null ? " " : $"{PendingBasePower(pending.Value):0.0} base power",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ThemeTypeVariation = BastionTheme.Hint,
+        };
+        column.AddChild(power);
+
         return box;
+    }
+
+    /// <summary>
+    /// Base power of the card awaiting placement, at the value it will actually take.
+    /// </summary>
+    /// <remarks>
+    /// An Ace is the only card whose power is not fixed by its rank, and blackjack - not the player -
+    /// decides which way it lands: it counts high unless that would bust. Asking the hand what the
+    /// card does to it is exact, and avoids quoting a power the tower will not have.
+    /// </remarks>
+    private double PendingBasePower(Rank rank)
+    {
+        int value = rank == Rank.Ace
+            ? (_controller.Session.Hand.Hit(Rank.Ace).IsSoft ? 11 : 1)
+            : rank.LowValue();
+
+        return _controller.Tuning.CardPower.ForValue(value);
     }
 
     private Button FamilyButton(string text, Family family)
@@ -371,6 +411,34 @@ public partial class PhaseControls : HBoxContainer
         }
 
         return StandingOrder.None;
+    }
+
+    /// <summary>What an order actually does, for the tooltip on the button that would set it.</summary>
+    private static string Explain(StandingOrder order)
+    {
+        if (order.IsDefault)
+        {
+            return "Fire on the closest enemy in range.";
+        }
+
+        if (order.HoldPastPosition is double p)
+        {
+            return $"Hold fire until an enemy has passed path position {p:0.0}, then fire on the closest.";
+        }
+
+        if (order.Focus == CoreFocusMode.PreferArmored)
+        {
+            return "Prefer an armored enemy over a closer unarmored one, while both are in range.";
+        }
+
+        if (order.Focus == CoreFocusMode.PreferLeading)
+        {
+            return "Prefer the enemy furthest along the path, while both are in range.";
+        }
+
+        return order.TriggerOnGroup
+            ? "Hold fire until two or more enemies are in range at once."
+            : "A custom order.";
     }
 
     private static string OrderLabel(StandingOrder order)

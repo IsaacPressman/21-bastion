@@ -141,9 +141,9 @@ public sealed class TargetingTests
     [Fact]
     public void A_tower_never_shoots_past_its_range()
     {
-        // Socket 3 with range 3.0 covers 0.0 to 6.0. An army entering at 6.5 has already walked
-        // past the far edge of that window and only ever moves further away.
-        BoardState board = Fixture.BoardAt(6.5, Fixture.Tower(Rank.Ace, Family.Club, Fixture.Socket(0, 0)));
+        // The forward socket sits at 3.0 with range 4.0, covering 0.0 to 7.0. An army entering at
+        // 7.5 has already walked past the far edge of that window and only ever moves further away.
+        BoardState board = Fixture.BoardAt(7.5, Fixture.Tower(Rank.Ace, Family.Club, Fixture.Socket(0, 0)));
 
         LaneOutcome lane = Fixture.LaneZero(TwoSoldiers, board);
 
@@ -154,10 +154,11 @@ public sealed class TargetingTests
     [Fact]
     public void A_face_cards_wider_range_reaches_where_a_plain_card_cannot()
     {
-        // Range 4.0 stretches socket 3's window to 7.0, so the same army at entry 6.5 is inside it.
-        // This is the geometric half of what a face card buys, and it interacts directly with the
-        // March Clock: a wider window is a window the march takes longer to eat.
-        BoardState board = Fixture.BoardAt(6.5, Fixture.Tower(Rank.Jack, Family.Club, Fixture.Socket(0, 0)));
+        // The face-card allowance adds 1.0 to whatever the socket grants, stretching the forward
+        // socket's window from 7.0 to 8.0 - so the same army at entry 7.5 is inside it. This is the
+        // geometric half of what a face card buys, and it interacts directly with the March Clock:
+        // a wider window is a window the march takes longer to eat.
+        BoardState board = Fixture.BoardAt(7.5, Fixture.Tower(Rank.Jack, Family.Club, Fixture.Socket(0, 0)));
 
         Assert.True(Fixture.LaneZero(TwoSoldiers, board).TowerActivity.Single().Shots > 0);
     }

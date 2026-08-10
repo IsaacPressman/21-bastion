@@ -29,12 +29,14 @@ public sealed class Shoe
     private readonly IReadOnlyList<Rank> _remaining;
     private readonly int _seed;
     private readonly int _generation;
+    private readonly string? _preset;
 
-    private Shoe(IReadOnlyList<Rank> remaining, int seed, int generation)
+    private Shoe(IReadOnlyList<Rank> remaining, int seed, int generation, string? preset = null)
     {
         _remaining = remaining;
         _seed = seed;
         _generation = generation;
+        _preset = preset;
     }
 
     /// <summary>Cards left before the next reshuffle.</summary>
@@ -80,6 +82,30 @@ public sealed class Shoe
     }
 
     /// <summary>
+    /// A shoe built to one of the tuned compositions, for the regression simulation.
+    /// </summary>
+    /// <remarks>
+    /// docs/prototype/VALIDATION.md step 3 simulates the baseline, face-heavy, and many-card shoes
+    /// separately, because output, bust rate, board width, and run frequency each move differently
+    /// under them - a single shoe would report an average that describes none of the three.
+    /// A reshuffle rebuilds the same composition, so a preset holds for a whole run.
+    /// </remarks>
+    /// <exception cref="TuningValidationException">If no such preset is defined.</exception>
+    public static Shoe Create(TuningData tuning, int seed, string preset)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+
+        if (!tuning.ShoePresets.ContainsKey(preset))
+        {
+            throw new TuningValidationException(
+                $"No shoe preset '{preset}'. Defined: {string.Join(", ", tuning.ShoePresets.Keys.Order(StringComparer.Ordinal))}.");
+        }
+
+        return new Shoe(
+            Shuffle(DeckFor(tuning, preset), DeriveSeed(seed, generation: 0)), seed, generation: 0, preset);
+    }
+
+    /// <summary>
     /// A shoe that yields a fixed sequence, for scripted scenario tests.
     /// </summary>
     /// <remarks>
@@ -92,6 +118,40 @@ public sealed class Shoe
         ArgumentNullException.ThrowIfNull(order);
 
         return new Shoe([.. order], seed: 0, generation: 0);
+    }
+
+    /// <summary>
+    /// The same shoe with the next occurrence of <paramref name="rank"/> moved to the top, or null
+    /// if none is left.
+    /// </summary>
+    /// <remarks>
+    /// Internal, and for counterfactuals only: it answers "what if the next card were a 3?" exactly,
+    /// by holding the rest of the shoe in its true order rather than reshuffling around the
+    /// substitution. That exactness is why the oracle's expected-output figures are worth having -
+    /// an approximation of the pile would make them a model of a model.
+    /// <b>Not a gameplay path.</b> The shoe deals what it deals; nothing player-facing may reorder it.
+    /// </remarks>
+    internal Shoe? WithNextCard(Rank rank)
+    {
+        int index = -1;
+
+        for (int i = 0; i < _remaining.Count; i++)
+        {
+            if (_remaining[i] == rank)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        List<Rank> reordered = [rank, .. _remaining.Take(index), .. _remaining.Skip(index + 1)];
+
+        return new Shoe(reordered, _seed, _generation, _preset);
     }
 
     /// <summary>
@@ -110,7 +170,7 @@ public sealed class Shoe
         }
 
         Rank card = _remaining[0];
-        Shoe rest = new([.. _remaining.Skip(1)], _seed, _generation);
+        Shoe rest = new([.. _remaining.Skip(1)], _seed, _generation, _preset);
         return (card, rest);
     }
 
@@ -133,7 +193,37 @@ public sealed class Shoe
         }
 
         int nextGeneration = _generation + 1;
-        return new Shoe(Shuffle(FullDeck(tuning), DeriveSeed(_seed, nextGeneration)), _seed, nextGeneration);
+
+        // Rebuilt to the same composition: a preset that reverted to baseline on reshuffle would
+        // quietly change what a 10,000-hand run was measuring, partway through it.
+        List<Rank> deck = _preset is null ? FullDeck(tuning) : DeckFor(tuning, _preset);
+
+        return new Shoe(Shuffle(deck, DeriveSeed(_seed, nextGeneration)), _seed, nextGeneration, _preset);
+    }
+
+    /// <summary>
+    /// The deck for a named preset: its own per-rank counts, or the ordinary shoe when it states none.
+    /// </summary>
+    private static List<Rank> DeckFor(TuningData tuning, string preset)
+    {
+        IReadOnlyDictionary<string, int>? counts = tuning.ShoePresets[preset].CopiesByRank;
+
+        if (counts is null)
+        {
+            return FullDeck(tuning);
+        }
+
+        List<Rank> deck = [];
+
+        foreach (Rank rank in Enum.GetValues<Rank>())
+        {
+            for (int copy = 0; copy < counts.GetValueOrDefault(rank.TuningKey()); copy++)
+            {
+                deck.Add(rank);
+            }
+        }
+
+        return deck;
     }
 
     /// <summary>Two copies of each rank A-K, in rank order before shuffling.</summary>

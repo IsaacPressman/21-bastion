@@ -14,60 +14,73 @@ public sealed class EngagementTests
 {
     private static readonly TuningData Tuning = TuningLoader.LoadFromRepositoryRoot();
 
-    private static double TotalAt(double entry) => Engagement.Total(
-        Tuning.Geometry.SocketPositions,
-        Tuning.Geometry.DefaultRange,
-        entry,
-        Tuning.Geometry.PathLength);
+    /// <summary>Every socket occupied, each at its own tuned range.</summary>
+    private static IEnumerable<(double Position, double Range)> AllSockets() =>
+        Tuning.Geometry.SocketPositions.Select((p, i) => (p, Tuning.Geometry.RangeBySocket[i]));
+
+    private static double TotalAt(double entry) =>
+        Engagement.Total(AllSockets(), entry, Tuning.Geometry.PathLength);
 
     [Fact]
-    public void Full_occupancy_at_entry_zero_gives_eighteen()
+    public void Full_occupancy_at_entry_zero_gives_seventeen()
     {
-        Assert.Equal(18.0, TotalAt(0.0), precision: 6);
+        // 7.0 + 6.0 + 4.0. Was a flat 18.0 before the geometry remedy; the total mattering less
+        // than its distribution is the whole point of that change.
+        Assert.Equal(17.0, TotalAt(0.0), precision: 6);
     }
 
     [Theory]
-    [InlineData(3.0, 6.0)]
-    [InlineData(6.0, 6.0)]
-    [InlineData(9.0, 6.0)]
-    public void Every_socket_window_is_six_units_at_entry_zero(double socket, double expected)
+    [InlineData(0, 7.0)]   // 3.0 +/- 4.0, clipped at the spawn end
+    [InlineData(1, 6.0)]   // 6.0 +/- 3.0
+    [InlineData(2, 4.0)]   // 9.0 +/- 2.0, clipped at the Bastion end
+    public void Socket_windows_differ_by_depth_at_entry_zero(int socketIndex, double expected)
     {
+        // The remedy for deep-placement dominance (docs/ROADMAP.md Open Decision 2). Under the
+        // former flat range every socket opened with an identical 6.0 window, so the first unit of
+        // advancement could only ever come out of the forward one - and deep placement paid nothing
+        // for it. Forward sockets now start ahead and have more to lose, which is what makes the
+        // trade a decision rather than a default.
         double window = Engagement.ForSocket(
-            socket, Tuning.Geometry.DefaultRange, entry: 0.0, Tuning.Geometry.PathLength);
+            Tuning.Geometry.SocketPositions[socketIndex],
+            Tuning.Geometry.RangeBySocket[socketIndex],
+            entry: 0.0,
+            Tuning.Geometry.PathLength);
 
         Assert.Equal(expected, window, precision: 6);
     }
 
     [Theory]
-    [InlineData(1.5, 16.5)]   // 3rd card
-    [InlineData(4.0, 13.0)]   // 4th card
-    [InlineData(7.5, 6.0)]    // 5th card - Revision 7 reported 7.5 here; it is 6.0
-    [InlineData(1.0, 17.0)]   // 4-card 21
-    [InlineData(4.5, 12.0)]   // 5-card 21
-    [InlineData(9.0, 3.0)]    // the clamp: brutal but survivable
-    [InlineData(6.0, 9.0)]    // 6-card 21, after the pullback off the clamp
+    [InlineData(1.5, 15.5)]   // 3rd card
+    [InlineData(4.0, 12.0)]   // 4th card
+    [InlineData(7.5, 5.0)]    // 5th card
+    [InlineData(1.0, 16.0)]   // 4-card 21
+    [InlineData(4.5, 11.0)]   // 5-card 21
+    [InlineData(9.0, 2.0)]    // the clamp: brutal but survivable
+    [InlineData(6.0, 8.0)]    // 6-card 21, after the pullback off the clamp
     public void Total_engagement_matches_the_published_tables(double entry, double expected)
     {
         Assert.Equal(expected, TotalAt(entry), precision: 6);
     }
 
     [Fact]
-    public void The_fifth_card_costs_sixty_seven_percent_not_fifty_eight()
+    public void The_fifth_card_still_costs_roughly_seventy_percent()
     {
+        // The remedy changed where engagement sits, not how hard the clock bites: the fifth card
+        // cost -67% under the flat geometry and -71% now. That matters, because the three march
+        // arms are pre-committed test arms - a geometry that quietly softened the curve would have
+        // answered the fifth-card question before the playtest got to ask it.
         double remaining = TotalAt(7.5) / TotalAt(0.0);
 
-        Assert.Equal(0.333333, remaining, precision: 5);
-
-        // Revision 7's arithmetic dropped the path-length term and summed the rear socket's full
-        // 6.0 window against only 4.5 units of remaining path.
-        Assert.NotEqual(0.42, remaining, precision: 2);
+        Assert.Equal(0.294118, remaining, precision: 5);
+        Assert.InRange(1.0 - remaining, 0.65, 0.75);
     }
 
     [Fact]
     public void A_socket_window_never_extends_past_the_end_of_the_path()
     {
-        // The rear socket sits at 9.0 with range 3.0, so its window would reach 12.0 exactly.
-        // Any range increase must not manufacture engagement beyond the Bastion.
+        // A socket at 9.0 would reach 13.0 on range 4.0, past the end of a 12.0 path. Range is
+        // tunable per socket and carries a face-card allowance on top, so this clip is what stops
+        // either of those manufacturing engagement beyond the Bastion.
         double window = Engagement.ForSocket(
             socketPosition: 9.0, range: 4.0, entry: 0.0, pathLength: 12.0);
 
@@ -75,23 +88,46 @@ public sealed class EngagementTests
     }
 
     [Fact]
-    public void Advancement_eats_forward_sockets_first()
+    public void Advancement_still_eats_forward_sockets_first()
     {
-        // The direction Revision 7 stated backwards, and the reason deep placement may be weakly
-        // dominant. At entry 4.0 the forward socket has lost most of its window while the rear
-        // socket has lost none.
-        double forward = Engagement.ForSocket(3.0, 3.0, entry: 4.0, pathLength: 12.0);
-        double rear = Engagement.ForSocket(9.0, 3.0, entry: 4.0, pathLength: 12.0);
+        // The direction Revision 7 stated backwards. It is a fact about the path, not about the
+        // tuning, so the geometry remedy does not repeal it: entry advances from the spawn side, so
+        // it always reaches the forward socket's window before the rear one's.
+        double forwardLost = WindowAt(0, entry: 0.0) - WindowAt(0, entry: 4.0);
+        double rearLost = WindowAt(2, entry: 0.0) - WindowAt(2, entry: 4.0);
 
-        Assert.Equal(2.0, forward, precision: 6);
-        Assert.Equal(6.0, rear, precision: 6);
-        Assert.True(rear > forward, "Advancement must degrade forward sockets before rear ones.");
+        Assert.True(forwardLost > rearLost,
+            "Advancement must degrade forward sockets before rear ones.");
+        Assert.Equal(0.0, rearLost, precision: 6);
     }
+
+    [Fact]
+    public void The_forward_socket_starts_far_enough_ahead_to_be_worth_the_tax()
+    {
+        // The other half of the remedy, and the half that makes placement a decision. Advancement
+        // costs the forward socket everything and the rear socket nothing (above), so under the
+        // former flat range deep placement was weakly dominant the moment entry left zero
+        // (docs/ROADMAP.md Open Decision 2). Forward sockets now open with a wider window, so a
+        // short hand is better off forward and a long one better off deep - the crossover is the
+        // decision.
+        Assert.True(WindowAt(0, entry: 0.0) > WindowAt(2, entry: 0.0),
+            "A short hand must be better off placing forward.");
+
+        Assert.True(WindowAt(2, entry: 7.5) > WindowAt(0, entry: 7.5),
+            "A hand that paid for a fifth card must be better off placing deep.");
+    }
+
+    /// <summary>One socket's window at its own tuned range.</summary>
+    private static double WindowAt(int socketIndex, double entry) => Engagement.ForSocket(
+        Tuning.Geometry.SocketPositions[socketIndex],
+        Tuning.Geometry.RangeBySocket[socketIndex],
+        entry,
+        Tuning.Geometry.PathLength);
 
     [Fact]
     public void An_empty_board_has_no_engagement()
     {
-        Assert.Equal(0.0, Engagement.Total([], 3.0, 0.0, 12.0), precision: 6);
+        Assert.Equal(0.0, Engagement.Total([], 0.0, 12.0), precision: 6);
     }
 
     [Theory]

@@ -31,6 +31,16 @@ public sealed record TuningData
     public required IReadOnlyDictionary<string, string> DealerCardUnits { get; init; }
     public required RulesTuning Rules { get; init; }
 
+    /// <summary>
+    /// Shoe compositions for the regression simulation. Absent means baseline only.
+    /// </summary>
+    /// <remarks>
+    /// docs/prototype/VALIDATION.md step 3 simulates 10,000 hands each across baseline, face-heavy,
+    /// and many-card shoes. Optional so a tuning file that predates them still loads.
+    /// </remarks>
+    public IReadOnlyDictionary<string, ShoePreset> ShoePresets { get; init; } =
+        new Dictionary<string, ShoePreset>();
+
     /// <summary>The enemy row with the given id.</summary>
     /// <exception cref="TuningValidationException">If no such enemy is defined.</exception>
     public EnemyTuning Enemy(string id) =>
@@ -59,12 +69,56 @@ public sealed record GeometryTuning
     public required int Lanes { get; init; }
     public required int JunctionSockets { get; init; }
     public required double DefaultEntry { get; init; }
-    public required double DefaultRange { get; init; }
-    public required double FaceCardRange { get; init; }
+
+    /// <summary>
+    /// Firing range per socket, indexed as <see cref="SocketPositions"/> is.
+    /// </summary>
+    /// <remarks>
+    /// Range varies by position rather than being one constant: this is the socket-geometry remedy
+    /// for the deep-placement dominance measured at Milestone 1 (docs/ROADMAP.md Open Decision 2,
+    /// docs/design/03-march-clock.md § Deep placement may be weakly dominant). A flat range gives
+    /// every socket an identical window at entry 0, and advancement then only ever eats the forward
+    /// one - which taxes forward placement rather than drawing, inverting the intended pressure.
+    /// </remarks>
+    public required IReadOnlyList<double> RangeBySocket { get; init; }
+
+    /// <summary>
+    /// Extra range a value-10 card gets <i>on top of</i> its socket's range.
+    /// </summary>
+    /// <remarks>
+    /// A bonus rather than the absolute figure it used to be. Once range varies by socket, an
+    /// absolute face-card range would <i>shorten</i> a King placed at a long-ranged forward socket,
+    /// which is the opposite of what "face cards see further" means
+    /// (docs/design/04-cards-as-defenses.md).
+    /// </remarks>
+    public required double FaceCardRangeBonus { get; init; }
 
     /// <summary>Sockets across all lanes plus the shared junction. Seven in the prototype.</summary>
     [JsonIgnore]
     public int TotalSockets => (SocketPositions.Count * Lanes) + JunctionSockets;
+
+    /// <summary>
+    /// Index of the socket the junction shares its ground with. The loader pins
+    /// <c>towers.junctionPathPosition</c> to this socket's position and requires the positions to
+    /// ascend, so index and position agree by construction.
+    /// </summary>
+    [JsonIgnore]
+    public int MiddleSocketIndex => SocketPositions.Count / 2;
+}
+
+/// <summary>
+/// One shoe composition for the regression simulation.
+/// </summary>
+/// <remarks>
+/// A null <see cref="CopiesByRank"/> means the ordinary shoe - <c>rules.copiesPerRank</c> of every
+/// rank - so the baseline preset states no counts rather than restating them and risking drift.
+/// </remarks>
+public sealed record ShoePreset
+{
+    public required string Label { get; init; }
+
+    /// <summary>Copies of each rank, keyed as <c>A</c>, <c>2</c>-<c>10</c>, <c>J</c>, <c>Q</c>, <c>K</c>.</summary>
+    public IReadOnlyDictionary<string, int>? CopiesByRank { get; init; }
 }
 
 public sealed record MarchTuning

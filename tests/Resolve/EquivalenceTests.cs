@@ -23,6 +23,7 @@ public sealed class EquivalenceTests
         Fixture.Tower(Rank.Four, Family.Spade, Fixture.Socket(1, 0), formation: 1.30));
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void The_final_forecast_is_what_the_timeline_actually_does()
     {
         // The combat contract, made testable: if it says a lane leaks two, the recording of the
@@ -43,6 +44,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void Every_unit_in_the_timeline_either_dies_or_leaks()
     {
         // Nothing is quietly dropped. A unit that vanished would make predicted damage look better
@@ -62,6 +64,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void The_visible_threat_matches_a_run_against_the_revealed_force_alone()
     {
         // The second half of VALIDATION step 4. The revealed force is the base wave plus the
@@ -79,6 +82,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void The_visible_threat_is_not_a_prediction_of_the_wave()
     {
         // The movement the design insists is not a broken promise: the two figures answer different
@@ -98,6 +102,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void The_two_forecasts_share_no_type()
     {
         // A type-system requirement rather than a convention, because the failure is silent: a
@@ -120,6 +125,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void Only_the_final_forecast_carries_a_timeline()
     {
         // A Visible Threat describes a force, not a wave that will run - so there is nothing on it
@@ -135,6 +141,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void Damage_prevented_is_the_gap_between_the_empty_lane_and_the_plan()
     {
         FinalForecast forecast = Fixture.ResolveComplete(
@@ -149,6 +156,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void An_undefended_lane_leaks_everything_and_says_why()
     {
         VisibleThreat threat = Fixture.ResolveRevealed(
@@ -163,6 +171,7 @@ public sealed class EquivalenceTests
     }
 
     [Fact]
+    [Trait(Bastion.Core.Tests.Regression.Regression.Trait, Bastion.Core.Tests.Regression.Regression.Category)]
     public void Open_and_held_read_off_the_plain_threshold()
     {
         // The maximum interpretation the game is permitted to do. The number is primary; this is a

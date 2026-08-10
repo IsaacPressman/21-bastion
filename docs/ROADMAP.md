@@ -1,12 +1,11 @@
 # Roadmap
 
-**Status: Milestone 3 complete.** The wave loop runs headless: the phase state machine, the Dealer's
-draw-to-17, bust with the Overload strike, the one-move adjustment window, lane stakes, and persistence
-with ×1.00 reversion — all driving the Milestone 1 resolver and Milestone 2 producer unchanged in shape.
-`design/example-wave.md` replays end to end (`tests/Wave/`). Milestone 4 (presentation) is next.
-**Open Decision 2 was re-measured with run links modelled (caveat 1 below) and the deep-placement margin
-held — the socket-geometry remedy is still owed before march tuning, and Milestone 3 deliberately did not
-touch socket geometry.**
+**Status: Milestone 4 complete; Milestone 5 in progress.** The wave loop runs headless and the game is
+playable end to end: the phase state machine, the Dealer's draw-to-17, bust with the Overload strike, the
+one-move adjustment window, lane stakes, persistence with x1.00 reversion, and the full presentation layer
+over them. `design/example-wave.md` replays end to end (`tests/Wave/`).
+**Open Decision 2 is closed** — deep placement was measured, confirmed dominant, and remedied by making
+range vary with socket depth (below). Milestone 5, the validation build, is under way.
 
 This roadmap sequences the prototype defined in `prototype/SCOPE.md`. It is derived from the design, not
 stated by it; the handoff specifies *what* to build, not *in what order*.
@@ -24,61 +23,72 @@ that directly; GDScript would have meant building harness infrastructure that C#
 
 Enforced structurally: `core/Bastion.Core.csproj` fails the build if it ever references GodotSharp.
 
-### 2. Socket geometry may need work before anything else — ⚠ **measured, and confirmed**
+### 2. Socket geometry needed work before anything else — ✅ **resolved: range varies by socket**
 
 Revision 7.1 flagged that **deep placement is weakly dominant whenever entry exceeds 0**: advancement eats
 forward socket windows and leaves rear ones untouched. The pushback — run-link adjacency, the junction
 socket, traps needing early application, leak thresholds — **lives in the resolver, not the engagement
 arithmetic**, so it could not be settled on paper.
 
-**It has now been measured.** `tests/Measurement/DeepPlacementSweep.cs` sweeps every socket permutation for
-boards of 2–4 towers across all three arms, with identical cards throughout so that neither card power nor a
-run link can explain a difference. Output: `telemetry/deep-placement.csv`.
+**It was measured, it held, and it has now been fixed.**
 
-**Deep placement wins in every arm, and the margin scales with the clock:**
+#### The measurement
 
-| Arm | Curve | Mean leak, deepest minus shallowest | Reading |
-|---|---|---:|---|
-| **A** | flat | **−1.40** | deep wins |
-| **B** | soft | **−1.47** | deep wins |
-| **C** | hard | **−1.87** | deep wins |
+`tests/Measurement/DeepPlacementSweep.cs` sweeps every socket permutation for boards of 2–4 towers across
+all three arms, with identical cards throughout so that neither card power nor a run link can explain a
+difference. Comparisons are made **within a fixed board shape** — same number of towers in each lane and
+the junction. That control matters: a naive deepest-versus-shallowest split over the raw sweep reports the
+same conclusion for the wrong reason, because the junction sits at mid-depth while also covering whichever
+lane the player neglected.
 
-Compared **within a fixed board shape** — same number of towers in each lane and the junction. That control
-matters: a naive deepest-versus-shallowest split over the raw sweep reports the same conclusion for the wrong
-reason, because the junction sits at path position 6.0 (reading as mid-depth) while also covering whichever
-lane the player neglected. Holding the shape fixed removes that confound.
+Deep placement won in every arm, and the margin scaled with the clock — which triggered the pre-committed
+reading in `prototype/VALIDATION.md`: **the socket geometry needs work before the march curve does.**
 
-The measurement reproduces the design's prediction exactly:
+#### The remedy
 
-- **At entry 0.00 the depth effect is absent, and what little moves is pure resolver-side timing.** All
-  sockets give identical engagement, so any difference here is fire-order and cooldown, not geometry. Three
-  shapes move, and they do not agree: two towers both in lane one favours **shallow** by 2, while the
-  one-and-one and lane-one-plus-junction shapes each favour **deep** by 1. The net is small and mixed —
-  which is the point. Forward towers opening fire sooner is a real resolver-side effect the engagement
-  arithmetic cannot see, but at entry 0 it does not systematically favour either side.
-- **Once entry exceeds 0, deep wins in every shape that varies**, and the margin grows from Arm A to Arm C.
-  The depth effect only becomes one-directional once advancement starts eating forward windows.
+`Sweep_candidate_geometries` swept nine candidates against a selection rule **committed before the numbers
+were read**: smallest worst-arm depth effect, tie-break on the smaller spread between arms, rejecting any
+candidate that merely inverts the bias into strong shallow dominance. Output: `telemetry/geometry-candidates.csv`.
 
-> **Per the pre-committed reading in `prototype/VALIDATION.md`: the socket geometry needs work before the
-> march curve does.** Do not renegotiate this now that the numbers are in.
+**Winner: range differs by socket — 4.0, 3.0, 2.0, forward to rear.** Socket positions are unchanged.
 
-Remedies, in the order the design proposes them: **uneven socket spacing**, range differences by position, or
-lane-specific leak thresholds. **Not the march curve.**
+| Arm | Curve | Before | After | With run links, after |
+|---|---|---:|---:|---:|
+| **A** | flat | −1.40 | **+0.73** | +1.27 |
+| **B** | soft | −1.47 | **+0.40** | +0.60 |
+| **C** | hard | −1.87 | **+0.40** | +0.53 |
 
-Two caveats worth carrying into that work, neither of which changes the verdict:
+Negative means deep placement leaked less, i.e. deep won. **Deep dominance is gone in every arm.**
 
-1. **Run links are now modelled** (Milestone 2), and the sweep was re-run with them —
-   `tests/Measurement/DeepPlacementSweep.cs` `Sweep_placement_depth_with_run_links_modelled`, output in
-   `telemetry/deep-placement-runs.csv`. To keep the depth comparison clean, ranks follow a
-   depth-symmetric valley (6-5-6), so a contiguous pair forms a 2-run at identical total power whether it
-   sits shallow or deep — no power gradient confounds the result. **The margin did not shrink; it held and
-   modestly widened** (A −1.80, B −2.07, C −2.13, versus −1.40 / −1.47 / −1.87 without runs). Deep placement
-   still wins in every arm, exactly as predicted: with runs available equally to shallow and deep contiguous
-   boards, they do not rescue shallow placement. The geometry remedy stands.
-2. The spawn schedule and tower cooldown are inventions of this milestone
-   (`reference/tuning-constants.md` § Invented for the resolver). The entry-0 timing effects in
-   particular — including the one shape that favours shallow — are a direct consequence of a 1.0 s
-   cooldown; a shorter one would shrink them. They do not touch the entry-above-0 verdict.
+Forward sockets now open with a wider window and therefore have more to lose; rear sockets open with less
+and lose none. A short hand is better off forward, a hand that paid for a fifth card is better off deep,
+and the crossover is the decision.
+
+Runner-up was `range-mid` (`[4.0, 3.0, 2.5]`), tied on worst-arm effect at 0.733 and beaten on the
+tie-break — spread between arms 0.533 against 0.333.
+
+#### Three findings worth keeping
+
+1. **Uneven socket spacing does not work, and it was the design's first-named remedy.** `[3,5,9]` and
+   `[3,7,9]` left the margin unchanged or slightly worse than the control. Moving the middle socket does
+   not change which end advancement arrives from. **Do not retry it without a new argument.**
+2. **The remedy overshoots slightly.** The residual is a mild *shallow* lean, largest in Arm A (+1.27 with
+   run links modelled) and smallest in Arm C — the curve the design specifies. Placement-depth logging
+   stays in the Milestone 5 instrumentation set to watch it in playtest.
+3. **The march curve was not touched and the clock did not soften.** The fifth card cost −67% before the
+   remedy and −71% after. That was a hard constraint: the three arms are pre-committed test arms, and a
+   geometry change that quietly flattened the curve would have answered the fifth-card question before the
+   playtest could ask it.
+
+Two caveats on the original measurement, neither of which changed the verdict:
+
+1. **Run links are modelled** (Milestone 2) and the sweep was re-run with them, output in
+   `telemetry/deep-placement-runs.csv`. Ranks follow a depth-symmetric valley (6-5-6) so a contiguous pair
+   forms a 2-run at identical total power whether it sits shallow or deep. Before the remedy the margin
+   held and modestly widened (A −1.80, B −2.07, C −2.13); after it, all three are positive.
+2. The spawn schedule and tower cooldown are inventions of Milestone 1
+   (`reference/tuning-constants.md` § Invented for the resolver). Entry-0 timing effects in particular are
+   a direct consequence of a 1.0 s cooldown.
 
 ### 3. Run-link adjacency rules — ✅ **resolved**
 
@@ -229,10 +239,18 @@ already existed, not a new lane loop.
 leakage, pile count 21, the 14 s timing not asserted). The invented pieces (Overload application shape, the
 Standard-bearer aura, the `herald_scout` row) are flagged in `reference/tuning-constants.md` § Invented.
 
-**Still owed before Milestone 5 march tuning:** the socket-geometry remedy for Open Decision 2. Milestone 3
-left socket geometry untouched by design.
+**The socket-geometry remedy owed here was delivered at Milestone 5** — see Open Decision 2. Milestones 3
+and 4 left socket geometry untouched by design.
 
-### Milestone 4 — Presentation and information
+### Milestone 4 — Presentation and information ✅
+
+Built in `game/presentation/` and `game/input/`, wired by the composition root in `game/Bootstrap.cs`:
+`PhaseHeader`, `BattlefieldView`, `BattlefieldPanel`, `HandPanel`, `CombatPlaybackView`, `PostWaveView`,
+`BoardInteraction`, `PhaseControls`. The UI is built in code rather than authored in the scene file, so
+every view is version-controlled C# and the scene is just an entry node.
+
+**The UI cannot be reviewed by reading it** — anchored regions and hand-drawn geometry only resolve at a
+real viewport size — so `game/devtools/CaptureRun.cs` walks a scripted wave and screenshots every phase.
 
 - Two separate panels: hand consequences, battlefield consequences. **No combined widget.**
 - **Visible Threat** during the draw, labelled as revealed-force only, updating on every draw and placement
@@ -245,20 +263,75 @@ left socket geometry untouched by design.
 - Post-wave leak explanation
 
 **Done when:** every item in `design/09-information-and-ui.md` § Shown is present and every item in § Not
-Shown is absent.
+Shown is absent. **Met.**
 
-### Milestone 5 — Validation build
+### Milestone 5 — Validation build ✅
 
-- **Arms A, B, and C selectable by configuration** — flat, soft, and hard march presets in one build
-- Ten scripted battery fixtures, deterministically seeded, each presentable twice with different
-  presentation
-- Full instrumentation logging per `prototype/VALIDATION.md`, including **placement depth** and **which
-  adjustment move was wanted**
-- The **fifth-card outcome measurement**: for each arm, how often a safe miss beat the stand-at-four
-  counterfactual by resolver output
-- The four regression procedures runnable as a suite
+- ✅ **Arms A, B, and C selectable by configuration** — `--arm A|B|C` after `--`, applied by rebuilding
+  tuning immutably (`game/Startup/LaunchOptions.cs`, `Bootstrap.SelectArm`). Never writes the file.
+- ✅ Scripted battery — `data/battery.json` + `core/Validation/`. All ten items of
+  `prototype/VALIDATION.md` § Scripted battery are covered; several name a *contrast* rather than one
+  state, so they expand to **17 cases**, each presented **twice** as a lane-mirrored variant, for 34
+  presentable states. `--fixture 2-split`, or a facilitator picker when no case is named.
+- ✅ Full instrumentation — `core/Validation/StateRecord.cs` and `SessionSnapshot` for everything
+  derivable from a session, `game/telemetry/PlaytestLog.cs` for the four things only the interface
+  knows. JSONL, one line per offered state, in `telemetry/sessions/` (gitignored).
+- ✅ **The fifth-card outcome measurement** — `tests/Measurement/FifthCardOutcomeSweep.cs`, output in
+  `telemetry/fifth-card.csv`. Result below.
+- ✅ The four regression procedures as one suite — `dotnet test --filter Category=Regression`.
 
 **Done when:** a playtest session can be run, logged, and analyzed without code changes between arms.
+**Met.**
+
+#### The mirror is a checked claim, not an assertion
+
+"Each state presented at least twice with different presentation" is only worth anything if the two
+presentations are *the same decision*. Variant B is **generated**, not hand-authored — lanes swap
+wholesale and the opening deal order reverses — and `tests/Validation/BatteryTests.cs` asserts that a
+mirrored case's Final Forecast is the original's with the lanes exchanged. Hand-authoring both halves
+is precisely how two presentations quietly stop being the same decision.
+
+#### The fifth-card measurement did not come out as predicted
+
+The design expected Arm C to make a safe fifth card **functionally dead**, with the pre-committed
+consequence that *if it does, Arm B is the design*. By resolver output, it does not.
+
+| Arm | Safe fifth card was the better play | Mean leak delta |
+|---|---:|---:|
+| A (flat) | 71.6% | −4.29 |
+| B (soft) | 68.0% | −3.80 |
+| C (hard) | **48.4%** | **−0.74** |
+
+Negative delta means hitting leaked less. The arms separate strongly and in the expected direction —
+Arm C very nearly neutralises the fifth card *on average* — but case by case it is still worth taking
+about half the time, which is not "dead".
+
+**The shape is the more interesting result, and it reproduces the design's narrowed claim.** In every
+arm there is a clean crossover at 18:
+
+| Four-card total | 14 | 15 | 16 | 17 | **18** | 19 | 20 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Arm C, hit better | 71% | 65% | 57% | 59% | **16%** | 1% | 0% |
+
+**Three caveats, none of which are grounds for renegotiating the reading:**
+
+1. **This is only half the measurement.** VALIDATION.md asks for the resolver comparison *and*,
+   separately, whether players say they would take it again. The arm verdict needs both halves; only
+   the first exists yet.
+2. **It conditions on the card being safe.** The *decision* to hit also carries bust risk, and at 16+
+   most cards bust. "A safe fifth card is usually good" is entirely compatible with "hitting is usually
+   bad" — bust risk is the counterweight, and that is the design working rather than failing.
+3. **Placement is optimised on both sides.** An extra tower is worth more to an exhaustive search than
+   to a person. The comparison is fair, but it is an upper bound on what the fifth card buys.
+
+#### Findings worth carrying forward
+
+- **Run frequency is 38–43% of hands** across all three shoes (`telemetry/shoe-simulation.csv`). The
+  pre-committed reading was that runs *too rare to shape placement* trigger Add-Back 3 (pairs). They are
+  not rare. **Add-Back 3 is not triggered.**
+- **Face-heavy busts less than baseline** (25.5% against 29.2%), which reads backwards until you notice
+  the simulation's stand-on-17 policy: face-heavy hands reach 17 in two cards and never hit again. Worth
+  remembering before treating that column as a difficulty signal.
 
 ---
 
