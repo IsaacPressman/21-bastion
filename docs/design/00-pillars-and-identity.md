@@ -130,6 +130,30 @@ Bastion Health alone determines whether the run is still alive.
 A memorable run should not be a list of relics — it should be a **siege history**. See
 `10-run-structure.md` § Run memory.
 
+### The encounter's own identity statement
+
+The Improved Encounters Handoff adds the encounter-scale version, and it is the sharpest statement of what
+a single battle is supposed to feel like:
+
+> The encounter should not feel like a hand of blackjack followed by tower placement. It should feel like
+> **reading an approaching military problem through a card table.**
+
+The battlefield tells the player what will happen if nothing changes. The timeline tells them *when* it
+will happen. The current formation tells them *why* it fails. A drawn card gives them several concrete
+ways to alter that future, and committing it changes the picture immediately.
+
+**Only then does the game ask whether they want another card.**
+
+They know the problem. They know the price of trying again. They know the kinds of outcomes another
+defense could create. They do **not** know whether the next rank will be the answer.
+
+> **Read. Diagnose. Commit. Observe. Decide whether to draw again.**
+
+Note how this lands against the pillars rather than beside them: it is *Reveal Consequences, Not
+Conclusions* stated as a feeling instead of a prohibition, and it is why the encounter work is an
+information problem before it is a mechanics problem. The diagnosis behind it —
+**insufficient causal consequence, not insufficient feature count** — is in `14-encounter-timeline.md`.
+
 ---
 
 ## A standing note on numbers

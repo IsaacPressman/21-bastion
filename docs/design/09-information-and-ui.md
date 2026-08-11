@@ -1,16 +1,24 @@
 # Information and Fairness
 
-Source: Handoff Revision 7.1, § 17.
+Source: Handoff Revision 7.1, § 17. **The information contract** is from the Improved Encounters Handoff,
+§§ 2, 3.
 
 This document is the operational form of the **Reveal Consequences, Not Conclusions** pillar. Treat the
 "Not Shown" list as a hard constraint on every UI task.
+
+**How consequence is displayed is a separate document.** `14-encounter-timeline.md` covers the timeline,
+candidate-placement deltas, counterfactual memory, and the solvable-puzzle guardrails. This one stays the
+authority on *what may appear at all.*
 
 ---
 
 ## Shown
 
 - Lane stakes, base wave, and **empty-lane damage** before the opening deal
+- The **complete authored base wave** before the opening hand: enemy types, spawn order, spawn timing,
+  lane assignment, and **spatial breakpoint abilities** (`06-dealer-and-enemies.md`)
 - The Dealer's **Vanguard, on the field, from the start**
+- **The hidden card's destination lane** — its rank stays unknown
 - **Visible Threat** per lane during the draw — **labelled as revealed-force only** — updating live on
   every draw and placement
 - **Final Forecast** per lane after Dealer resolution — **labelled as the combat contract**
@@ -29,6 +37,30 @@ This document is the operational form of the **Reveal Consequences, Not Conclusi
 - Combined utility, hit edge, stand edge, or **recommended action**
 - Green/red indicators or **optimal placement highlights**
 - **An exact bust percentage**
+- **Any baseline next-draw preview** — see below
+- **A single sortable score per candidate placement** (`14-encounter-timeline.md`)
+- **A summed engagement number** as a headline readout
+
+---
+
+## Next-draw preview is cut from the baseline
+
+> **Status: CUT FROM BASELINE.**
+
+Do not show the top three ranks in unknown order, the rank band of the next player draw, or any other
+next-card preview beyond **remaining-rank composition with busting ranks marked**.
+
+Revision 7.1 already gives the player the correct blackjack information, and it is deliberately a reading
+skill rather than a lookup (§ Why the bust percentage is excluded). A preview would be the same shortcut
+arriving through a different door.
+
+**Reserved for rare doctrine, commander, or rule-breaking effects** — never baseline. This is the same
+shape as the Watchtower change: an information effect that used to reveal the hidden card's lane now
+reveals its **rank class** instead, because the lane became baseline
+(`06-dealer-and-enemies.md`).
+
+> The encounter thesis asks the battlefield to be certain and the **draw** to stay uncertain. A next-draw
+> preview attacks the half that is supposed to stay unknown.
 
 ---
 

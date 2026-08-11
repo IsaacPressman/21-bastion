@@ -2,6 +2,8 @@
 
 Source: Handoff Revision 7.1, § 20 (Test Arms through Regression). **The rank-stacking sequence, the siege
 probe, and run-layer instrumentation** are from the Run Layer Handoff (consolidated), §§ 11, 12.
+**Improved-encounter instrumentation, success criteria, and failure signals** are from the Improved
+Encounters Handoff, §§ 18, 20, 21, 22.
 
 > That is the whole validation architecture.
 
@@ -42,6 +44,17 @@ card is a hypothesis — rescued on exact 21, functionally dead on a safe miss, 
 That sentence is the point of the whole exercise. The design is not defending Arm C; it is testing whether
 Arm C is too sharp.
 
+> ⚠ **Optional opportunity units change what this measurement measures.** The Milestone 5 sweep compared
+> safe-miss against stand-at-four on **predicted leak alone**, which was correct while leak was the only
+> thing a fifth card could buy. Once a wave carries an opportunity unit
+> (`../design/06-dealer-and-enemies.md`), a card that leaks *more* may still be right — it cancelled a
+> later reinforcement group, stripped a buff off the enemies still to come, completed a run, or avoided a
+> costly replacement — and a leak-only comparison cannot see it.
+>
+> **The measured arm numbers remain valid for the encounter they were taken in.** They stop being the
+> whole question. Re-run the sweep after opportunity units exist, and report both, rather than replacing
+> the first with the second.
+
 ### The secondary measurement
 
 The same three arms disambiguate the **many-card archetype**, since three separate Revision 7 changes — no
@@ -76,6 +89,19 @@ ordered, and the order is the point.
    many-card viability.**
 4. If stacking becomes automatic at capacity, **test one cost in isolation.** **Do not change March and
    stacking simultaneously.**
+
+> ⚠ **The Improved Encounters Handoff moved step 2 much later.** Stacking is now the **last** item in a
+> seven-step encounter sequence — improved information and timeline, breakpoint enemies, tactical tower
+> forms, Wave 2 counter-rotation, an opportunity unit, **validate the base encounter**, *then* enable
+> stacking and re-run.
+>
+> **"Stacking should deepen a functioning placement game, not rescue a shallow one."** The risk it names
+> is specific: a shallow encounter plus stacking reads as an improvement, and the improvement is
+> attributed to the wrong system. See `../ROADMAP.md` § Improved-encounter build order.
+>
+> Note the consequence for step 1 — **the baseline the stacking pass is read against is now the *improved*
+> encounter, not the Milestone 5 one.** The Milestone 5 baseline still answers the March-arm question. It
+> does not answer the stacking question once the encounter beneath it has changed.
 
 Step 4's constraint is the same discipline as the geometry remedy: the arms are pre-committed test arms, so
 a second variable moving at the same time destroys the reading rather than enriching it.
@@ -125,6 +151,55 @@ setup.
 - Combat is **skipped or watched by choice, not endured**.
 - Players **want another encounter**.
 
+### The improved encounter is working if
+
+These are the Improved Encounters Handoff's own criteria. The first is the one everything else serves:
+
+- **Before most Hit decisions, players can name the battlefield problem they are trying to solve.**
+- Players use the **timeline** to reason about attacks, March loss, slow, and enemy breakpoints.
+- Important cards routinely present **2–3 plausible deployments**.
+- Players make **different placements for the same rank** under different enemy timing and stakes.
+- **Snare changes the value of Barrage** in a way players notice and intentionally exploit.
+- **Forward placement is sometimes correct** despite March exposure, because an early breakpoint matters.
+- **Rear placement is sometimes correct**, because preserving engagement matters more.
+- **Junction placement is used as a hedge**, not merely because no other socket was available.
+- **Wave 2 feels like adaptation to an existing board**, not a fresh setup.
+- Optional opportunities **sometimes** motivate an otherwise unnecessary draw.
+- Safe fourth- and fifth-card misses are **occasionally defensible for battlefield reasons**.
+- Players can explain **what the last committed card bought them**.
+- Players do **not** routinely brute-force every hover combination.
+- Placement stays **brisk** — the encounter does not become optimization homework.
+
+Note that three of these are two-sided on purpose. Forward *sometimes*, rear *sometimes*, opportunities
+*sometimes*: each names a failure in both directions, which is what stops the criterion from being
+satisfied by a build that simply moved the dominance somewhere else.
+
+---
+
+## Failure signals
+
+Each of these has its response attached, and **the response is almost never "add a mechanic."** That is
+the diagnosis the whole encounter pass rests on.
+
+| Signal | What it means and what to do |
+|---|---|
+| **The player still cannot say why they want another card** | The **information layer** has failed. Do not add more mechanics |
+| **Players only compare leakage numbers** | The encounter collapsed into scalar minimization. Increase competing battlefield consequences — **not** hidden information |
+| **Everyone builds deep** | Breakpoint enemies are too weak, too rare, or badly positioned. **Fix enemy timing before touching socket bonuses** |
+| **Everyone uses the same form for a rank** | The four forms are not tactically differentiated enough |
+| **Snare and Barrage are useful but never combined** | The bunching interaction is too weak or too hard to read |
+| **Players hover every candidate before choosing** | The forecast has become a brute-force oracle. Reduce sortable outputs, emphasize causal tradeoffs |
+| **Players ignore optional opportunities** | Payoff too small, or too detached from the run |
+| **Players always pursue optional opportunities** | They are mandatory objectives in disguise. Lower the payoff or raise the situationality |
+| **Wave 2 feels like Wave 1 with more enemies** | Persistence is not producing adaptation. **Rewrite encounter pairs before adding progression systems** |
+| **Placement times explode** | Do not add decisions. Simplify presentation, reduce candidate forms, or make the timeline more legible |
+
+The third row deserves a second look. *"Fix enemy timing before touching socket bonuses"* points the
+opposite way from § Deep placement's pre-committed reading, and the resolution is now explicit: **the
+shipped range-by-socket values stay authoritative**, breakpoints are built as a separate tactical-depth
+hypothesis, and the geometry question is settled afterwards by an isolated four-step measurement — never
+by tuning both at once. `../reference/tuning-constants.md` § Known Discrepancies, entry 12.
+
 ---
 
 ## Instrumentation
@@ -156,6 +231,47 @@ seeing the data.
 **When the stacking flag is on, also log:** match opportunity, whether the stack was chosen, what the
 replacement alternative was, capacity state, socket depth, and the families in the stack. Readings for
 those are in § Rank-stacking sequence above.
+
+### Improved-encounter instrumentation
+
+Most of this is **interface-side** — it measures how the player searched, not what the session contained —
+so it lands in `game/telemetry/PlaytestLog.cs` rather than in `SessionSnapshot`.
+
+**Placement behavior.** Time per card placement; median and 90th-percentile placement time; time by card
+number in hand; **number of candidate forms hovered**; **number of candidate sockets hovered**; number of
+times the player moves between two competing options before committing.
+
+**Tactical understanding** — facilitator-observed, not derivable:
+
+- Can the player explain the current battlefield shortfall **before** hitting?
+- Can they explain **what the last card changed**?
+- Do they reference timeline events, breakpoints, and runs, or **raw power**, when explaining a placement?
+
+**Candidate-space health.** Occasionally ask: *"which placements were you seriously considering?"*
+
+| Answer | Reading |
+|---|---|
+| **2–3**, usually | The target |
+| **One**, repeatedly | The puzzle is too obvious |
+| **Six or more**, repeatedly | The state is too noisy |
+
+**Timeline usage.** Whether the player expands detailed stats or relies on the timeline; whether March-step
+consequences are understood **before** drawing; whether standing-order changes are made from timeline
+information.
+
+**Hover-brute-force risk.** Flag states where the player inspects nearly every form-and-socket
+combination before committing. **If that is common, the candidate preview is functioning as an oracle** —
+the guardrail in `../design/14-encounter-timeline.md` § The solvable-puzzle risk, made measurable.
+
+**Optional opportunities.** How often pursued; how often pursuing one causes an **additional Hit**; how
+often that Hit is a fourth or fifth card; whether safe misses remain tactically defensible; whether
+players describe them as optional or mandatory.
+
+**Wave 2.** Persisted towers retained, replaced, and stacked when the flag is on; run links broken versus
+preserved; **whether Wave 2 produces materially different placement reasoning from Wave 1.**
+
+> The Wave 2 row is the one that decides whether encounter-scoped persistence earns its place at all
+> (`../design/05-battlefield.md` § Wave 2 must disturb the Wave 1 solution).
 
 ---
 

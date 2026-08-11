@@ -39,7 +39,9 @@ public sealed record LaunchOptions
     private const string LogFlag = "--log-out";
     private const string NoLogFlag = "--no-log";
 
-    /// <summary>Owned by <c>game/devtools/CaptureRun.cs</c>; read here only to skip the picker.</summary>
+    /// <summary>
+    /// Owned by <c>game/devtools/CaptureRun.cs</c>; read here to skip the picker and to suppress logging.
+    /// </summary>
     private const string CaptureFlag = "--capture";
 
     /// <summary>March preset key, or null to use whatever <c>data/tuning.json</c> selects.</summary>
@@ -55,6 +57,21 @@ public sealed record LaunchOptions
     public string LogDirectory { get; init; } = "res://telemetry/sessions";
 
     /// <summary>Whether to write a session log at all. On by default - this is the logging build.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Forced off by <c>--capture</c>.</b> A capture run drives the controller itself, so every state
+    /// it produces carries a decision time measured in tens of milliseconds and a choice nobody made.
+    /// Those lines are indistinguishable from a real session on disk, and they pooled into the Milestone
+    /// 5 baseline as if a person had played them - nine synthetic sessions against two real ones, which
+    /// is how <c>meanCardsAtLock</c> came to describe a script.
+    /// </para>
+    /// <para>
+    /// Suppressed here rather than filtered later because a capture run is a smoke test that already has
+    /// its own output, and the cheapest fix for data that should not exist is not to write it.
+    /// <see cref="Bastion.Core.Validation.SessionAnalysis"/> still screens for synthetic runs, for the
+    /// logs written before this existed.
+    /// </para>
+    /// </remarks>
     public bool Logging { get; init; } = true;
 
     /// <summary>
@@ -79,6 +96,7 @@ public sealed record LaunchOptions
         ArgumentNullException.ThrowIfNull(args);
 
         string? seedText = ArgumentAfter(args, SeedFlag);
+        bool capturing = System.Array.IndexOf(args, CaptureFlag) >= 0;
 
         return new LaunchOptions
         {
@@ -86,8 +104,12 @@ public sealed record LaunchOptions
             FixtureId = ArgumentAfter(args, FixtureFlag),
             Seed = int.TryParse(seedText, out int seed) ? seed : DefaultSeed,
             LogDirectory = ArgumentAfter(args, LogFlag) ?? "res://telemetry/sessions",
-            Logging = System.Array.IndexOf(args, NoLogFlag) < 0,
-            SkipPicker = System.Array.IndexOf(args, CaptureFlag) >= 0,
+
+            // --capture wins over the absence of --no-log: a capture run must never write a session
+            // log, and requiring the operator to remember both flags is how the nine synthetic
+            // sessions got written in the first place.
+            Logging = System.Array.IndexOf(args, NoLogFlag) < 0 && !capturing,
+            SkipPicker = capturing,
         };
     }
 

@@ -1,8 +1,32 @@
 # Core Gameplay Loop
 
-Source: Handoff Revision 7.1, § 3.
+Source: Handoff Revision 7.1, § 3. **The tactical loop** is from the Improved Encounters Handoff, § 1.
 
 This is the phase order the implementation must follow. It is the spine of the wave state machine.
+
+---
+
+## The tactical loop
+
+The phase list below is the *machine's* view of a wave. The **player's** view is a five-step cycle, and
+the Improved Encounters Handoff makes it the primary description of what an encounter is:
+
+1. **Read** — what will happen if the current plan resolves as-is?
+2. **Diagnose** — where and when does the formation fail?
+3. **Commit** — what role and position does this card take?
+4. **Observe delta** — what did that commitment fix, and what remains?
+5. **Decide** — is the remaining battlefield problem worth another draw and another March step?
+
+> **Hit is step five, not the entire decision system.**
+
+That reframing is the point. The encounter is no longer described primarily as "draw and place": four of
+the five steps happen before the blackjack decision, and every encounter system exists to strengthen one
+of them. Steps 1 and 2 are the timeline and the exact committed-state forecast; step 3 is family, mode,
+and socket; step 4 is counterfactual memory; step 5 is the March Clock. See
+`14-encounter-timeline.md`.
+
+The failure signal is the inverse of step 5: **if the player cannot say why they want another card, the
+information layer has failed — and the response is not to add mechanics.**
 
 ---
 
@@ -56,6 +80,8 @@ the type system.
 1. Review which lanes leaked, by how much, and why.
 2. Between waves of an encounter, towers and shoe state persist.
    **Persisted towers revert to ×1.00 Formation Strength.**
+   **Wave 2 is authored to disturb the Wave 1 solution** rather than to repeat it —
+   `05-battlefield.md` § Wave 2 must disturb the Wave 1 solution.
 3. After an encounter, **issue one strategic order.**
 
 Step 3 is the run layer's cadence rule and it replaces 7.1's "take a reward and choose a route": there is

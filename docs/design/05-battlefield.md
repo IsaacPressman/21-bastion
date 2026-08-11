@@ -1,6 +1,8 @@
 # Battlefield
 
 Source: Handoff Revision 7.1, § 10. **Rank stacking** is from the Run Layer Handoff (consolidated), § 2.
+**Wave 2 authoring, the junction's job, and the standing-order editing rule** are from the Improved
+Encounters Handoff, §§ 10, 11, 17.
 
 ---
 
@@ -45,6 +47,12 @@ tension, **the answer is more sockets, not a softer rule.**
 > Rank stacking is included because it creates a **second placement archetype — density versus spread** —
 > **not** because it is a free socket-pressure valve. Run the March Clock test arms with stacking **off**
 > first, then repeat with the flag enabled (`../prototype/VALIDATION.md` § Rank-stacking sequence).
+>
+> ⚠ **The Improved Encounters Handoff moved it later still.** Stacking is now the **last** item of the
+> improved-encounter sequence, after the timeline, breakpoints, tower forms, Wave 2 counter-rotation, and
+> an opportunity unit — because **"stacking should deepen a functioning placement game, not rescue a
+> shallow one."** Do not use it to compensate for an encounter that is not yet interesting.
+> See `../ROADMAP.md` § Improved-encounter build order.
 
 **Two towers of the same rank may occupy one socket as a single stack.** Matching is by **rank, not
 blackjack value**: J+J stacks, **J+Q does not.**
@@ -130,6 +138,45 @@ Reverting to ×1.00:
 
 That last point is the real purpose. Persistence exists to create scarcity, not to bank power.
 
+### Wave 2 must disturb the Wave 1 solution
+
+> **Status: DECIDED.** The second wave of an encounter **must not simply be "another hand."**
+
+Wave 1 establishes a formation. **Wave 2 deliberately makes that formation imperfect.** The player then
+faces persisted families that cannot be reassigned, an existing run structure, occupied sockets, forced
+replacement, rank-stacking opportunities where the flag is on, and **a changed tactical requirement.**
+
+> **This is the primary reason encounter-scoped persistence exists.**
+
+#### The authoring goal, stated broadly on purpose
+
+> **Wave 2 creates a materially different tactical demand from Wave 1 and makes prior commitments
+> relevant.**
+
+The handoff's worked example rotates lane roles, and **that example is not the rule.** Three shapes
+satisfy the goal, and only the first is a literal counter:
+
+| Shape | Example |
+|---|---|
+| **Role reversal** | Lane 1 Swarm / Lane 2 Armor becomes Lane 1 **Armor** / Lane 2 **Fast** |
+| **New breakpoint** | The same armor column, now led by a **Standard Bearer** that must die before socket 6 |
+| **Relocated uncertainty** | The same lane roles, but the Dealer reinforcement now threatens the lane that was safe |
+
+Requiring a literal reversal every time would make encounters predictable in exactly the way this test is
+meant to prevent — and it would waste the two cheaper shapes, both of which reuse a composition and change
+only what it *demands*.
+
+**It must disturb the Wave 1 solution without making it worthless.** The desired feeling is *"my old board
+still matters, but it is no longer the board I would build from scratch."* The failure signal is exact —
+**if Wave 2 feels like Wave 1 with more enemies, persistence is not producing adaptation, and the fix is
+rewriting encounter pairs, not adding progression systems.**
+
+⚠ **Not authorable yet — a decided schema change, not an open question.** `EncounterTuning.BaseWave` holds
+a *single* composition that every wave of the encounter reuses, so none of the three shapes can be
+expressed in `data/tuning.json` today. It becomes **per-wave authored data**, renamed out of the singular,
+with the loader enforcing *authored wave count == encounter wave count*. **Prerequisite for Milestone 8.**
+Known Discrepancy 14.
+
 ### The encounter boundary is where persistence stops
 
 The run layer states the same rule from the campaign side: **the shape of the ground persists; towers do
@@ -213,18 +260,54 @@ triage is a real decision. See `../reference/tuning-constants.md` § Known Discr
 
 ---
 
+## The junction is the uncertainty hedge
+
+> **Status: DECIDED.** The junction's identity is **broader than "reduced contribution to both lanes."**
+
+It should attack or influence either lane, **intercept lane-switching threats**, provide coverage while
+the Dealer's hidden rank is unknown, interact with middle-socket standing orders across lanes where
+appropriate, and **trade raw specialization for flexibility.**
+
+> The junction should be **intentionally attractive when uncertainty is concentrated** in one part of the
+> wave, and a **worse choice once the player knows exactly where maximum committed output is needed.**
+
+That is what makes it a decision rather than a fallback, and it is why the hidden card's visible
+destination lane matters so much (`06-dealer-and-enemies.md`): a hedge is only meaningful against a threat
+you can locate but not identify. The success criterion is correspondingly specific — **junction placement
+used as a hedge, not merely because no other socket was free.**
+
+Its costs are unchanged: reduced contribution, and **run-island status** — the junction is adjacent to
+neither lane and no tower placed there can join a run (`04-cards-as-defenses.md` § Adjacency). Breadth
+bought, synergy forfeited.
+
+---
+
 ## Standing orders
 
-Because combat has no live input, the adjustment window offers **pre-committed conditionals**:
+Because combat has no live input, the game offers **pre-committed conditionals**:
 
 | Order | Behavior |
 |---|---|
-| **Hold** | Fire only at enemies past a chosen socket. |
-| **Focus** | Prefer armored targets, or prefer the leading target. |
-| **Trigger on group** | A trap waits for a minimum number of enemies in radius. |
+| **Hold** | Do not fire or trigger before a chosen point. |
+| **Focus** | Prioritize a defined enemy class, or the leading target. |
+| **Trigger on group** | Wait until a minimum valid group exists. |
 
 **Modeled exactly by the resolver and shown in the forecast.** A standing order that the forecast cannot
 model is not shippable.
+
+### They are encounter skill, not a secondary menu
+
+> **Status: DECIDED.** Standing orders may be edited **freely during planning and during the post-Dealer
+> adjustment window.** They lock **only when combat begins**, and they **do not consume the one positional
+> adjustment move.**
+
+This widens 7.1, which described them as an adjustment-window offering. They are now available throughout
+the draw, which is what lets a Siege Club be told to hold for the armored target *at the moment it is
+placed* rather than several decisions later.
+
+**Their effect must be visible on the timeline** (`14-encounter-timeline.md` § Standing orders live on the
+timeline). An order whose consequence the player cannot see is a menu, and the whole point of this change
+is that it is not one.
 
 ---
 

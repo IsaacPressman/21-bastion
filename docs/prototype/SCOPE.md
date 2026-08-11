@@ -1,6 +1,7 @@
 # Prototype Scope
 
-Source: Handoff Revision 7.1, § 20, plus the Run Layer Handoff (consolidated), §§ 11, 13.
+Source: Handoff Revision 7.1, § 20, plus the Run Layer Handoff (consolidated), §§ 11, 13, and the
+**Improved Encounters Handoff**, §§ 7, 9, 12, 24.
 
 **This is a boundary, not a suggestion.** Anything in the Cut list is out of scope unless explicitly
 requested.
@@ -45,7 +46,51 @@ Revision 6 asked whether drawing at total 8 could be made tense. **That question
 - **Hit and stand only**
 - **Rank stacking — behind a flag, default off** (`../design/05-battlefield.md` § Rank stacking)
 
-### The one addition: rank stacking
+### The improved-encounter additions
+
+The Improved Encounters Handoff adds work **inside** the encounter rather than beside it. Its own § 24
+constrains this list as hard as anything in § Cut below.
+
+| Added | Where |
+|---|---|
+| **The encounter timeline** — the primary visual language for tactical consequence | `../design/14-encounter-timeline.md` |
+| **Exact committed-state resolver statistics** per lane | `../design/14-encounter-timeline.md` |
+| **Counterfactual deltas** after a card is committed | `../design/14-encounter-timeline.md` |
+| **Four tower forms** — Barrage / Siege Club, Snare / Ambush Spade | `../design/04-cards-as-defenses.md` |
+| **Snare → bunch → Barrage** and deterministic bunching | `../design/06-dealer-and-enemies.md` |
+| **Spatial breakpoint enemies** — Standard Bearer, Saboteur, Siege Engine, Lane-Switching Raider | `../design/06-dealer-and-enemies.md` |
+| **The hidden card's visible destination lane** | `../design/06-dealer-and-enemies.md` |
+| **Wave 2 authored to counter-rotate Wave 1** | `../design/05-battlefield.md` |
+| **One optional opportunity unit** per encounter | `../design/06-dealer-and-enemies.md` |
+| Standing orders **editable throughout, visible on the timeline** | `../design/05-battlefield.md` |
+
+**The four tower forms are not a scope increase on top of four families — they are a partial refund of the
+breadth Hearts and Diamonds took with them.** That framing is load-bearing: if they are read as "more
+complexity," the first instinct under pressure will be to cut them back to two, which restores the hole
+they were added to fill.
+
+**Opportunity-unit payouts are encounter-local, and Favor stays out.** The Paymaster pays Favor, so it is
+**deferred to the run layer**; the Supply Courier and Standard Wagon are rewritten to pay inside the
+encounter — a cancelled reinforcement group, a buff that never activates. **Do not build Favor to support
+an opportunity unit, and do not invent a substitute currency**, which would mean building an economy to
+test a placement question (Known Discrepancy 13).
+
+### Explicitly not added
+
+Improved Encounters § 24 names nine things the encounter pass does **not** introduce, and the reasoning
+behind the list matters more than the list: **the diagnosis is insufficient causal consequence, not
+insufficient feature count.**
+
+Baseline next-card preview · additional blackjack actions · more formation multipliers · arbitrary socket
+stat bonuses · generalized enemy tower destruction · live combat clicking · more than four prototype tower
+forms · player-facing optimal-play recommendations · a combined tactical utility score.
+
+> ⚠ **"Arbitrary socket stat bonuses" collides with the shipped range-by-socket remedy.** Resolved for
+> now in favour of the measurement: **range-by-socket stays authoritative**, breakpoints are a separate
+> hypothesis, and the question is settled later by a four-step isolated experiment —
+> `../reference/tuning-constants.md` § Known Discrepancies, entry 12.
+
+### The one addition from the run layer: rank stacking
 
 Two same-rank towers may share a socket, depth 2, no Aces, no power bonus, no run eligibility.
 
@@ -92,7 +137,7 @@ expensive half and the probe is the half that answers whether the pressure lands
 
 ## Scope drift warnings
 
-Seven things will feel like small additions and are not:
+Ten things will feel like small additions and are not:
 
 1. **A second link rule.** Runs-only is a deliberate reduction. Adding pairs back is Add-Back 3 and has a
    trigger condition.
@@ -114,3 +159,12 @@ Seven things will feel like small additions and are not:
    entry; no persistent multiplier crosses an encounter boundary. A front may change path length, socket
    layout, route structure, and lane stakes — all resolver *inputs* — and nothing else
    (`../design/11-siege-geography.md`).
+8. **A single sortable number on a candidate placement.** `Projected value: 5.1 → 3.4` is a combined
+   verdict computed per hover, and it converts placement into brute-force search. Candidate previews carry
+   **causal deltas** (`../design/14-encounter-timeline.md` § Candidate placements show causal deltas).
+9. **A fifth tower form, or a Family → Mode submenu.** Four direct forms is the tested shape. A fifth is
+   the "more than four prototype tower forms" § 24 rules out, and a two-step menu converts one decision
+   into two.
+10. **Generalized tower destruction.** The Saboteur **disables temporarily**. An enemy roster that can
+    permanently eat the board turns placement risk into placement fear, and the fairness contract is what
+    makes the deterministic forecast worth trusting.

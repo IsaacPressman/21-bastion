@@ -77,6 +77,34 @@ not change which end advancement arrives from. And the remedy slightly overshoot
 mild *shallow* lean, largest in Arm A (+1.27 with run links modelled) and smallest in Arm C. Placement-depth
 logging stays in the instrumentation set to watch it.
 
+### 🔬 Breakpoints are a second hypothesis, not a replacement
+
+Improved Encounters § 9 declares **spatial breakpoint enemies** the *"baseline solution to deep-placement
+dominance"* and adds *"do not give sockets arbitrary statistical bonuses to create identity"* — which,
+read literally, argues against the remedy that is already in the build.
+
+**That language is softened, and this is the wording that governs:**
+
+> **Spatial breakpoints give forward and middle positions distinct tactical jobs and may reduce or
+> eliminate the need for socket-specific range. The currently validated range-by-socket values remain
+> authoritative until breakpoints are implemented and re-measured in isolation.**
+
+**Range-by-socket remains the baseline remedy.** Breakpoints are added as a separate tactical-depth
+hypothesis. They may eventually replace range asymmetry; **they have not earned that yet**, and a measured
+remedy is not reverted on the strength of an unbuilt one.
+
+The two are not obviously exclusive. Range redistributes *engagement*; breakpoints redistribute *what must
+be solved where*. A lane where the Standard Bearer must die before socket 6 gives forward sockets a job no
+range figure confers — and it is equally possible that stacking both overshoots, since the residual
+shallow lean above is already the measured side effect of the remedy that shipped.
+
+**The experiment, in isolation and in this order:** build breakpoints keeping 4.0 / 3.0 / 2.0 → measure →
+run the identical sweep at flat 3.0 → compare → only then decide whether range asymmetry is still
+necessary. **Do not tune breakpoints and range together.** Four outcomes are pre-committed, including
+*keep 4/3/2 unchanged* and *reduce asymmetry because the combination overshot*.
+
+Full protocol and the outcome table: **Known Discrepancy 12** in `../reference/tuning-constants.md`.
+
 ---
 
 ## The rule
@@ -203,6 +231,12 @@ This has teeth in three places:
 - The UI shows **which socket windows the next step cuts into, on the lane** — not a single engagement
   number (`09-information-and-ui.md`).
 
+The Improved Encounters Handoff restates this and goes one step further: **the timeline and the per-socket
+windows *replace* the scalar as the player-facing readout**, and the intended reading of a march step is
+*"this cannon loses two shots before the Siege Engine crosses socket 9"* rather than *"entry moves from 1.5
+to 4.0"* (`14-encounter-timeline.md`). The scalar survives in debug tools and in these documents. It has
+no player-facing home at all.
+
 ---
 
 ## The fifth card is a hypothesis, not an identity
@@ -230,9 +264,26 @@ counting the one rank that saves them.
 | **Safe miss** | Usually bad, but **sometimes defensible** — because of a run it completes, a replacement it avoids, a family the lane needs, or a stake worth less than health |
 | **Bust** | Clearly worse than both |
 
-**Whether the −67% curve permits that middle outcome is an open question and probably the most important
+**Whether the −71% curve permits that middle outcome is an open question and probably the most important
 thing the prototype measures.** It is the primary measurement of the test arms — see
 `../prototype/VALIDATION.md`.
+
+### The Improved Encounters Handoff attacks this from the other side
+
+Every remedy above tries to make the middle outcome survivable by **tuning the price**. Improved Encounters
+§ 12 instead gives the card **something else to buy**: an optional opportunity unit means a board that
+already survives can still justify another draw — to cancel a reinforcement group scheduled later in this
+encounter, strip a buff off the enemies still to come, complete a run, avoid a costly replacement, or
+enable a tactical interaction (`06-dealer-and-enemies.md` § Optional opportunity units). **The payoff is
+encounter-local; Favor is not involved in the prototype.**
+
+> **Exact 21 remains spectacular, but a safe miss does not have to be worthless.**
+
+**This changes what the fifth-card measurement is measuring.** The Milestone 5 sweep compared safe-miss
+against stand-at-four on **predicted leak alone**, because leak was the only thing a fifth card could buy.
+With opportunity units in the wave, a card that leaks *more* may still be correct — and no leak-only
+comparison can see that. The measured arm numbers stay valid for the encounter they were taken in, and
+they stop being the whole question. Noted in `../prototype/VALIDATION.md` § The primary measurement.
 
 ---
 

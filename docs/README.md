@@ -1,9 +1,10 @@
 # 21 Bastion — Documentation
 
-Split from two handoffs:
+Split from three handoffs:
 
 - `archive/handoff-revision-7-1.md` — Gameplay Design Handoff, **Revision 7.1**. The **encounter**.
 - `archive/handoff-run-layer.md` — Rank Stacking & Continuous Siege Run Layer, consolidated. The **run**.
+- `archive/handoff-improved-encounters.md` — Improved Encounters Addendum. **How an encounter is read.**
 
 Start at `../CLAUDE.md` for orientation and the hard invariants.
 
@@ -21,13 +22,24 @@ Start at `../CLAUDE.md` for orientation and the hard invariants.
 > **one** encounter mechanic, **rank stacking**, behind a flag. Four new discrepancies (8–11) are logged in
 > `reference/tuning-constants.md`.
 
+> **The Improved Encounters Addendum makes the encounter legible, and supersedes nothing automatically.**
+> Its diagnosis is that the player often cannot form a concrete intention before drawing — *"the problem is
+> not insufficient decision count."* It adds the **encounter timeline** as the primary visual language,
+> makes the base wave and the hidden card's **lane** fully known, gives the committed state exact
+> consequences and candidate placements **causal deltas but no score**, adds **four tower forms** and
+> **spatial breakpoint enemies**, requires **Wave 2 to counter-rotate Wave 1**, and **moves rank stacking to
+> the end of the sequence.** Five new discrepancies (12–16) are logged. **12 — breakpoints versus the
+> shipped range-by-socket remedy — is deliberately left open as a measured experiment**, with
+> range-by-socket authoritative meanwhile; **13 and 14 are decided** (encounter-local opportunity payouts,
+> no Favor; per-wave composition as a required schema change).
+
 ---
 
 ## Design specification — `design/`
 
 Read the specific document for the system you are touching.
 
-**The encounter — 00 through 09.** This is the prototype.
+**The encounter — 00 through 09, and 14.** This is the prototype.
 
 | File | Covers |
 |---|---|
@@ -41,7 +53,12 @@ Read the specific document for the system you are touching.
 | [`07-bust-and-overload.md`](design/07-bust-and-overload.md) | Bust handling, capped Overload |
 | [`08-deck-economy-progression.md`](design/08-deck-economy-progression.md) | Shoe, thinning dilemma, **reward verbs, card identity, exhaustion, economy** |
 | [`09-information-and-ui.md`](design/09-information-and-ui.md) | Shown / not shown — the fairness constraints, at both scales |
+| [`14-encounter-timeline.md`](design/14-encounter-timeline.md) | **The timeline**, exact committed-state consequences, candidate deltas, counterfactual memory, the solvable-puzzle guardrails |
 | [`example-wave.md`](design/example-wave.md) | A fully worked wave — the end-to-end acceptance test |
+
+`14` is numbered after the run-layer documents because it arrived last, but it is **encounter scope and
+prototype work.** Read it with `09` — that one governs *what may be shown*, this one *how consequence is
+displayed.*
 
 **The run — 10 through 13.** Deferred, not cut. Nothing here is prototype scope except the rank-stacking
 flag, which lives in `05`.
@@ -74,16 +91,21 @@ flag, which lives in `05`.
 
 | File | Status |
 |---|---|
+| [`archive/handoff-improved-encounters.md`](archive/handoff-improved-encounters.md) | **Current, for encounter legibility.** Timeline, information contract, tower forms, breakpoints, Wave 2 authoring, opportunity units, stacking resequenced last. **Claims no precedence** — folded in by this pass. |
 | [`archive/handoff-run-layer.md`](archive/handoff-run-layer.md) | **Current, for the run.** Rank stacking, the continuous siege, campaign economy, opposing shoe, victory/defeat. **Supersedes 7.1 where they disagree**, except on encounter arithmetic. |
 | [`archive/handoff-revision-7-1.md`](archive/handoff-revision-7-1.md) | **Current, for the encounter.** Its § 24 lists every correction over Revision 7. |
 | [`archive/handoff-revision-7.md`](archive/handoff-revision-7.md) | **Superseded.** Kept for history. Several numbers and two instructions are now known wrong — do not cite it. |
 
-The two current handoffs are the source of truth for **intent**. The split documents are authoritative for
-**implementation**; if they disagree with a current handoff, that is a bug worth flagging.
+The three current handoffs are the source of truth for **intent**. The split documents are authoritative
+for **implementation**; if they disagree with a current handoff, that is a bug worth flagging.
 
-Where the two current handoffs disagree with *each other*, the run layer wins — with the standing carve-out
-that it changes **no** encounter-level arithmetic. The four known collisions are logged as discrepancies
-8–11 in `reference/tuning-constants.md`.
+**Precedence, where they disagree with each other:**
+
+- **Run layer over 7.1**, with the standing carve-out that it changes **no** encounter-level arithmetic.
+  Collisions logged as discrepancies 8–11.
+- **Improved Encounters claims no precedence at all.** It consolidates decisions made after the other two
+  and was written to be folded in, which this pass did. **Where it collides with a measured result, the
+  measurement holds until a new measurement replaces it.** Collisions logged as discrepancies 12–16.
 
 ---
 
@@ -101,8 +123,14 @@ that it changes **no** encounter-level arithmetic. The four known collisions are
 **Considering adding a system:** `design/00-pillars-and-identity.md` § One System Per Job →
 `prototype/SCOPE.md` § Scope drift warnings → `prototype/RISKS-AND-ADDBACKS.md` § Add-Back Sequence
 
+**Building the improved encounter:** `design/14-encounter-timeline.md` → `design/01-core-loop.md`
+§ The tactical loop → `ROADMAP.md` § Improved-encounter build order → `prototype/VALIDATION.md`
+§ Failure signals. **Read the build order before the content** — items 1–4 are information and items 5–7
+are mechanics, and building the second group first is the named drift.
+
 **Building rank stacking:** `design/05-battlefield.md` § Rank stacking → `prototype/VALIDATION.md`
-§ Rank-stacking sequence → `prototype/RISKS-AND-ADDBACKS.md` Part 3 → `ROADMAP.md` § Milestone 6
+§ Rank-stacking sequence → `prototype/RISKS-AND-ADDBACKS.md` Part 3 → `ROADMAP.md` § Milestone 9
+*(it was Milestone 6 before the encounter pass renumbered it)*
 
 **Thinking about the run layer:** `design/10-run-structure.md` → `ROADMAP.md` § Run-layer sequencing →
 `prototype/SCOPE.md` § The run layer is deferred, in a stated order. **Read the sequencing before the

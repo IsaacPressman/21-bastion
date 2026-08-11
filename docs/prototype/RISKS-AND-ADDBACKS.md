@@ -261,8 +261,79 @@ curve.
 
 ---
 
+# Improved-encounter risks
+
+Source: Improved Encounters Handoff, §§ 15, 16, 22. These are risks of the **information** layer, and they
+share a pattern worth naming: every one of them is made *worse* by adding a mechanic.
+
+## The encounter becomes a solvable puzzle
+
+The game is deterministic and increasingly transparent, and that is **intentional**. The danger is that
+full information plus exhaustive candidate preview turns placement into brute-force optimization.
+
+> The problem is not that an optimal solution mathematically exists. The problem is if the interface makes
+> it **trivial to discover without understanding why.**
+
+**Detected by** hover instrumentation — candidate forms hovered, candidate sockets hovered, and states
+where the player inspects nearly every combination before committing.
+
+**Remedy: reduce sortable candidate outputs and emphasize causal tradeoffs.** Explicitly **not** the
+remedy: hiding battlefield information. That would attack the encounter thesis — the battlefield is
+supposed to be certain, and only the draw uncertain — to fix a problem caused by the *shape* of what is
+shown rather than the amount. Guardrails in `../design/14-encounter-timeline.md`.
+
+## Cognitive load makes placement into homework
+
+A drawn card can ask the player to weigh rank, four forms, socket, run structure, breakpoints, standing
+orders, March cost, lane stakes, and Dealer uncertainty at once.
+
+**Detected by** placement time: median, 90th percentile, and time by card number in hand. **Placement
+times exploding is the signal.**
+
+**Remedy, in order:** simplify presentation, reduce candidate forms, make the timeline more legible.
+**The answer is not another mechanic**, and it is specifically not a helper that summarizes the decision —
+that is the combined verdict invariant 2 forbids, arriving as an accessibility feature.
+
+> The timeline **is** the compression mechanism. If load is too high, the timeline is not doing its job
+> yet; adding a second aid on top of it concedes that and doubles the surface.
+
+## The four forms are not actually different
+
+**Detected by** form choice per rank. If everyone uses the same form for a given rank, the forms are not
+tactically differentiated — and four undifferentiated options cost the same attention as four real ones
+while returning nothing.
+
+**Remedy:** differentiate behavior, not numbers. A coefficient change makes one form better; a behavior
+change makes each form *correct somewhere*. Note the related signal — **Snare and Barrage independently
+useful but never intentionally combined** — which points at bunching legibility rather than at the forms.
+
+## Optional opportunities stop being optional
+
+Two-sided by construction, and both sides are failures:
+
+| Signal | Meaning | Remedy |
+|---|---|---|
+| **Ignored** | Payoff too small or too detached from the run | Raise or reconnect the payoff |
+| **Always pursued** | Mandatory objectives in disguise | **Lower** the payoff, or raise situationality |
+
+The second is the more likely one, and the instinct it will provoke — make the reward better so it feels
+worth it — is exactly backwards.
+
+## Wave 2 does not produce adaptation
+
+If Wave 2 feels like Wave 1 with more enemies, **persistence is not doing the job it exists for.**
+
+**Remedy: rewrite encounter pairs before adding progression systems.** Persistence exists to create
+scarcity and forced adaptation (`../design/05-battlefield.md` § Wave 2), and a progression system layered
+on top of a Wave 2 that does not bite would be paying for a fix in the wrong place.
+
+---
+
 ## Pattern
 
 Every risk above names its own remedy, and in most cases names remedies that are *forbidden*. That is the
 useful part. When a playtest surfaces one of these, the response is already written down — the job is to
 apply it, not to redesign around it.
+
+The improved-encounter risks sharpen that into a rule: **when the information layer fails, the response is
+never a new mechanic.** Four of the five above would be made worse by one.

@@ -1,7 +1,8 @@
 # The Dealer and Enemies
 
 Source: Handoff Revision 7.1, §§ 11, 12. **The opposing shoe and public recruitment** are from the Run
-Layer Handoff (consolidated), § 6.
+Layer Handoff (consolidated), § 6. **Spatial breakpoints, deterministic bunching, the hidden card's
+visible lane, and optional opportunity units** are from the Improved Encounters Handoff, §§ 2.2, 8, 9, 12.
 
 ---
 
@@ -45,6 +46,24 @@ Every card in the Dealer's hand deploys as a unit in the wave.
 The **upcard is visible from the opening deal and is already standing on the field as the Vanguard.** The
 hidden card is a reinforcement the player knows is coming but cannot identify. Every card the Dealer draws
 while resolving adds another unit.
+
+### The hidden card's lane is visible from the start
+
+> **Status: DECIDED.** The hidden card's **rank stays unknown; its destination lane does not.**
+
+The player knows *"something unknown is coming to lane two."* They do not know its rank or the enemy it
+becomes. Any **further** Dealer draws remain unknown in every respect until resolution.
+
+This is uncertainty that **does not prevent intention** — the distinction the encounter thesis rests on
+(`14-encounter-timeline.md`). A player who knows only that something is coming somewhere cannot form a
+plan, and their Hit decision degrades into "maybe another tower would help." A player who knows the lane
+can hedge it deliberately, which is also what gives the junction its job (`05-battlefield.md` § The
+junction is the uncertainty hedge).
+
+> **Consequence for doctrine.** Because destination lane is now baseline information, **Watchtower and
+> similar effects no longer reveal it.** The upgraded effect reveals the hidden card's **rank class** —
+> Low, Mid, High, or Court. Exact implementation is future content work
+> (`13-doctrine-and-charters.md`).
 
 > "Dealer shows a King" is no longer an abstract pressure category the interface must translate. It is a
 > siege engine at the head of lane two.
@@ -161,4 +180,145 @@ The **base wave** is the encounter's own composition; **the Dealer's hand is add
 
 > A wave is never fully known until the player stands, but its shape is known from the upcard.
 
-Four enemy types is the full prototype roster.
+Four enemy types was the full prototype roster under Revision 7.1. The Improved Encounters Handoff adds
+the breakpoint enemies below.
+
+---
+
+## The base wave is fully known before the deal
+
+> **Status: DECIDED.** The base wave is **not a source of uncertainty.**
+
+Before the opening hand the player sees enemy types, spawn order, spawn timing, lane assignment, lane
+stakes, **spatial breakpoint abilities**, empty-lane damage, and the Vanguard's rank, unit, and lane.
+
+**The player must be able to form a battlefield plan before drawing.** All remaining uncertainty is
+located in exactly two places: the hidden card's rank, and whatever the Dealer draws after it. See
+`09-information-and-ui.md` § Shown.
+
+---
+
+## Spatial breakpoints
+
+> **Status: DECIDED as a mechanic. Its role as a geometry remedy is an open, measured question.**
+
+Socket identity should emerge from **what enemies do at different points on the lane**. The handoff
+originally called breakpoints the *baseline solution* to deep-placement dominance; **that claim is
+softened**, because the prototype already ships a measured remedy — range varying by socket
+(4.0 / 3.0 / 2.0). The governing wording:
+
+> **Spatial breakpoints give forward and middle positions distinct tactical jobs and may reduce or
+> eliminate the need for socket-specific range. The currently validated range-by-socket values remain
+> authoritative until breakpoints are implemented and re-measured in isolation.**
+
+So: **build breakpoints for the tactical jobs they create**, keeping the current range values, and settle
+the geometry question afterwards with the four-step experiment in `../reference/tuning-constants.md`
+§ Known Discrepancies, entry 12. **Do not tune breakpoints and range together.**
+
+The design intent, independent of that question:
+
+| Depth | Why it should be worth taking |
+|---|---|
+| **Forward** | Some threats must be solved **early**, before a breakpoint fires |
+| **Rear** | Retains more engagement after March advancement |
+| **Middle** | Junction access, run topology, and breakpoint timing |
+
+### Prototype breakpoint enemies
+
+| Enemy | Breakpoint behavior |
+|---|---|
+| **Standard Bearer** | If alive when crossing a specified breakpoint, buffs nearby and following enemies. The player may need to kill it **before socket 6** |
+| **Saboteur** | At its breakpoint, **disables the nearest eligible tower for a temporary duration** |
+| **Siege Engine** | If alive when crossing **socket 9**, fires a Bastion shot. Killed before socket 9, it does not fire |
+| **Lane-Switching Raider** | At the junction, changes lane by a **deterministic, previewed** rule |
+
+Two constraints on this roster, both load-bearing:
+
+- **The Saboteur disables; it does not destroy.** Do not begin with permanent destruction — disabling one
+  of three towers is already a large effect, and the severity is an open question rather than a decided
+  number (`../ROADMAP.md` § Improved-encounter open questions).
+- **Generalized tower destruction is not baseline.** Ordinary enemies do not broadly attack towers in the
+  prototype. **Specific, telegraphed positional threats** create placement risk without violating the
+  fairness contract; a lane that can eat your board without warning does not.
+
+The Lane-Switching Raider is the Skirmisher under a tactical name, and it remains the structurally
+awkward one: lanes resolve independently today, so a unit crossing between them changes the shape of the
+lane loop rather than adding a rule inside a phase. Still stubbed in `core/Resolve/UnmodelledBehaviour.cs`.
+
+### Deterministic bunching
+
+> Enemies have a **minimum legal spacing** and **do not pass one another** unless an explicit enemy ability
+> says otherwise.
+
+If a leading enemy is slowed and a follower would violate minimum spacing, **the follower's speed is
+capped to maintain that spacing.** The result is column compression upstream of the slowed unit, and
+Barrage splash becomes stronger against the compressed group (`04-cards-as-defenses.md` § Tower-to-tower
+tactical interaction).
+
+This is a movement rule, so it stays deterministic and stays in the resolver — invariant 7 is untouched.
+**The timeline must show the compression**, because an interaction the player cannot see is an
+interaction they cannot intend.
+
+---
+
+## Optional opportunity units
+
+> **Status: DECIDED.** If every survival lane is already Held, the player needs a reason to consider
+> further risk.
+
+**Do not present these as checklist objectives.** Embed them physically into the wave as units.
+
+### Prototype payouts are encounter-local — ✅ decided
+
+> **No Favor in the prototype. Opportunity-unit payouts must land inside the encounter that offered them.
+> Favor and Dealer-recruitment rewards are full-run extensions of the same units.**
+
+**And no substitute currency.** Inventing a prototype-only resource to carry these payouts would be
+inventing an economy to test a placement question — which is the shape hard invariant 1 exists to prevent.
+
+| Unit | Killed before its breakpoint | Allowed through |
+|---|---|---|
+| **Supply Courier** | **Cancels a reinforcement group** scheduled later in this encounter | The reinforcement arrives normally |
+| **Standard Wagon** | Upcoming enemies **lose a visible buff** | The buff activates |
+
+Both are deterministic, both are legible on the timeline, and neither needs a resource to exist. The
+**Paymaster** — *"kill before a breakpoint to gain +1 Favor"* — is **deferred to the run layer** with the
+rest of Favor rather than rewritten.
+
+**This is better for the prototype than a currency would have been.** The question an opportunity unit
+exists to ask is:
+
+> **Will a player risk another card for a non-survival tactical gain?**
+
+Favor is not needed to answer it — and a currency payout would arguably answer a *different* question,
+since a player chasing a campaign resource is reasoning about the run rather than about the battlefield in
+front of them. An encounter-local consequence keeps the fifth-card test where the prototype can read it.
+
+The run-layer version of the same unit **adds** Favor or recruitment interference on top. Extension, not
+redesign. See `../reference/tuning-constants.md` § Known Discrepancies, entry 13.
+
+### The requirements are the design
+
+- **Optional means optional.** Failure must not make the encounter feel lost.
+- They create **overcommitment temptation**, not mandatory chores.
+- Rough target: **one meaningful opportunity per encounter**, not one per wave.
+
+Both failure modes are pre-committed readings: players who **ignore** them mean the payoff is too small or
+too detached from the run; players who **always** pursue them mean they are mandatory objectives in
+disguise, and the answer is a lower payoff or more situationality — never a bigger reward
+(`../prototype/VALIDATION.md`).
+
+### Why this sits in the fifth-card argument
+
+Optional opportunities are a **partial answer to the fifth-card binary problem** (`03-march-clock.md` § The
+fifth card is a hypothesis). A board that already survives can still justify another card, because the
+card cancels a later reinforcement group, strips a buff off the enemies still to come, completes a run,
+avoids a costly replacement later, or enables a tactical interaction.
+
+> **Exact 21 remains spectacular, but a safe miss does not have to be worthless.**
+
+That is the "sometimes defensible" middle outcome the design has been unable to produce by tuning the
+march curve alone — and note what it means for the arm question: it changes the *thing being measured*.
+The Milestone 5 fifth-card measurement was taken without opportunity units, against pure leak output. See
+`../prototype/VALIDATION.md` § The primary measurement.
+

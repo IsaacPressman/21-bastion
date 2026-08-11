@@ -1,0 +1,36 @@
+# Milestone 5 baseline, reduced from telemetry/sessions/*.jsonl.
+# The stacking pass re-runs THIS report with the flag on and compares.
+# stackAtCapacityRate is absent by construction with stacking off - it is not zero, it is unmeasured.
+# Readings are pre-committed in docs/prototype/VALIDATION.md - do not renegotiate them after reading this.
+# MACHINE-DRIVEN SESSIONS ARE EXCLUDED and listed below by name. A capture run produces
+# states nobody decided; pooling them measures CaptureRun, not a player.
+
+# THE COMPARISON TABLE. Empty cells mean the arm was never played, not that the metric is zero.
+# 'sessions' counts human sessions only; 'syntheticExcluded' is what was screened out.
+arm,sessions,syntheticExcluded,states,settledWaves,forcedReplacementFraction,stackAtCapacityRate,capacityStateFraction,runFraction,meanPlacementDepth,meanCardsAtLock,fiveOrMoreCardFraction
+A,0,0,0,0,,,,,,,
+B,0,0,0,0,,,,,,,
+C,2,9,34,6,0.167,,0.265,0.167,5.735,2.333,0.000
+
+# Per session, so a short or abandoned run can be spotted rather than pooled away.
+# driver=machine rows are EXCLUDED from the table above. They are listed, never deleted.
+session,arm,driver,medianDecisionMs,states,settledWaves,placements,forcedReplacements,statesAtCapacity,wavesWithRun,unreadableLines
+20260810-060641-armC-freeplay.jsonl,C,machine,137.000,7,1,3,0,0,0,0
+20260810-062335-armC-freeplay.jsonl,C,machine,134.000,7,1,3,0,0,0,0
+20260810-062546-armC-freeplay.jsonl,C,machine,132.000,7,1,3,0,0,0,0
+20260810-062704-armC-freeplay.jsonl,C,machine,139.000,7,1,3,0,0,0,0
+20260810-062955-armC-freeplay.jsonl,C,machine,163.000,7,1,3,0,0,0,0
+20260810-063125-armC-freeplay.jsonl,C,machine,157.000,7,1,3,0,0,0,0
+20260810-063818-armC-1-held.jsonl,C,human,9301.000,15,3,4,1,5,1,0
+20260810-065458-armC-freeplay.jsonl,C,machine,160.000,7,1,3,0,0,0,0
+20260810-065654-armC-freeplay.jsonl,C,machine,178.000,7,1,3,0,0,0,0
+20260810-065933-armC-freeplay.jsonl,C,human,3890.000,19,3,8,1,4,0,0
+20260810-071657-armC-freeplay.jsonl,C,machine,186.000,7,1,3,0,0,0,0
+
+# COVERAGE, human sessions only. The stacking pass cannot be read against an arm
+# with no settled waves, and a machine-driven wave is not a settled wave.
+metric,value
+humanSessions,2
+syntheticExcluded,9
+settledWaves,6
+armsWithNoSettledWave,A B

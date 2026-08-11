@@ -7,12 +7,20 @@ scripted battery cases, per-state JSONL logging, and the four regression procedu
 `design/example-wave.md` replays end to end (`tests/Wave/`). **Open Decision 2 is closed** — deep placement
 was measured, confirmed dominant, and remedied by making range vary with socket depth (below).
 
-**Next: Milestone 6, the rank-stacking pass** — the one encounter mechanic the Run Layer Handoff adds, and
-the only part of that handoff inside prototype scope.
+**Next: Milestone 6, the encounter information pass** — the first stage of the Improved Encounters
+Handoff.
+
+> ⚠ **The milestones after 5 were renumbered by the Improved Encounters Handoff.** Rank stacking was
+> Milestone 6; **it is now Milestone 9**, because the handoff moves it to the end of a seven-step sequence
+> on the explicit grounds that *"stacking should deepen a functioning placement game, not rescue a shallow
+> one."* Any note referring to "Milestone 6, the stacking pass" means what is now Milestone 9. The siege
+> menu probe moved from 7 to 10.
 
 This roadmap sequences the prototype defined in `prototype/SCOPE.md`. It is derived from the design, not
-stated by it; the handoffs specify *what* to build, not *in what order*. **Milestones 6 onward map onto the
-run layer's own production sequence** (§ Run-layer sequencing below), which *is* stated.
+stated by it; the handoffs specify *what* to build, not *in what order* — **with two exceptions that are
+stated**: the run layer's production sequence (§ Run-layer sequencing) and the Improved Encounters
+Handoff's build order (§ Improved-encounter build order). Milestones 6–9 follow the second; 10 onward
+follow the first.
 
 ---
 
@@ -337,9 +345,84 @@ arm there is a clean crossover at 18:
   the simulation's stand-on-17 policy: face-heavy hands reach 17 in two cards and never hit again. Worth
   remembering before treating that column as a difficulty signal.
 
-### Milestone 6 — Rank-stacking pass ⬜
+### Milestone 6 — Encounter information and the timeline ⬜
 
-The one encounter mechanic the Run Layer Handoff adds, and **the only part of it inside prototype scope.**
+**The first and largest stage of the Improved Encounters Handoff**, and the one its diagnosis says matters
+most: *the problem is not insufficient decision count, it is that the player cannot form a concrete
+intention before drawing.* Everything here is an **information** change. No new mechanics.
+
+- **The base wave is fully known** before the opening hand — types, spawn order, timing, lane assignment,
+  breakpoint abilities, empty-lane damage (`design/09-information-and-ui.md` § Shown)
+- **The encounter timeline** — a deterministic time-and-path strip per lane carrying spawn timing, tower
+  engagement windows, March advancement, slow and bunching, Hold orders, breakpoints, and reinforcements
+  (`design/14-encounter-timeline.md`)
+- **Exact committed-state statistics** per lane: which enemy leaks, first leak time, damage required
+  before a breakpoint, damage currently delivered, attacks per tower
+- **Counterfactual deltas** after a card is committed — what that card changed, preserved long enough to
+  read
+- **The hidden card's destination lane is visible** from the start; its rank is not
+- **Standing orders editable throughout**, locking only at combat, and **visible on the timeline**
+- Candidate previews carry **causal deltas and no sortable scalar**; **hover counts instrumented** from the
+  first build, because that is how the oracle failure is detected rather than assumed absent
+
+**Done when:** a player can state the battlefield problem they are trying to solve before each Hit
+decision, and the March step reads as *"this cannon loses two shots"* rather than *"entry moves to 4.0."*
+
+> **This milestone is where the encounter thesis is won or lost.** Its failure signal —
+> *the player still cannot say why they want another card* — carries the instruction **do not add more
+> mechanics.** If Milestone 6 does not land, Milestones 7 and 8 will not rescue it.
+
+### Milestone 7 — Tactical depth ⬜
+
+The mechanical half, deliberately **after** the information half.
+
+- **Spatial breakpoint enemies** — Standard Bearer, Saboteur (temporary disable), Siege Engine, and the
+  Lane-Switching Raider (`design/06-dealer-and-enemies.md` § Spatial breakpoints)
+- **Deterministic bunching** — minimum spacing, no passing, followers capped behind a slowed leader
+- **Four tower forms** — Barrage / Siege Club, Snare / Ambush Spade, chosen as four direct options with no
+  Family → Mode submenu (`design/04-cards-as-defenses.md` § Prototype tower forms)
+- **Snare → bunch → Barrage** legible on the timeline, plus the two other named interactions
+- **The junction as uncertainty hedge** — intercepting lane-switchers, covering the located unknown
+
+**Done when:** the three named interactions are reachable and readable, and form choice varies by lane
+state rather than by rank.
+
+🔬 **Build breakpoints at the current 4.0 / 3.0 / 2.0 range, and change nothing about geometry.** The
+handoff calls breakpoints the baseline solution to deep-placement dominance; that claim is softened —
+**range-by-socket stays authoritative**, and breakpoints are a separate tactical-depth hypothesis until
+measured. The geometry question is settled *after* this milestone, in isolation:
+
+1. Build breakpoints keeping **4.0 / 3.0 / 2.0**
+2. Measure — `DeepPlacementSweep`, all three arms
+3. Run the identical sweep at flat **3.0 / 3.0 / 3.0**
+4. Compare, then decide whether range asymmetry is still necessary
+
+**Do not tune breakpoints and range together.** Four outcomes are pre-committed, including *keep 4/3/2*
+and *reduce asymmetry because the combination overshot into shallow dominance*. Known Discrepancy 12.
+
+### Milestone 8 — Encounter authoring ⬜
+
+- **Per-wave authored composition** — a **prerequisite**, not a nice-to-have. `baseWave` becomes a list
+  renamed out of the singular, and the loader enforces *authored wave count == encounter wave count*.
+  Until this lands, Wave 2 cannot differ from Wave 1 at all (Known Discrepancy 14)
+- **Wave 2 creates a materially different tactical demand** and makes prior commitments relevant — by role
+  reversal, a new breakpoint, or relocated uncertainty. **Not necessarily a literal counter-rotation**
+  (`design/05-battlefield.md` § Wave 2)
+- **One optional opportunity unit** per encounter, embedded physically as a unit rather than as a checklist
+  objective, paying **encounter-local** consequences — a cancelled reinforcement group, a buff that never
+  activates. **No Favor, and no substitute currency** (Known Discrepancy 13)
+- Encounter pairs authored against the **2–3 plausible placements** target
+
+**Done when:** Wave 2 produces materially different placement reasoning from Wave 1, measured rather than
+asserted.
+
+### Milestone 9 — Validate the base encounter, then rank stacking ⬜
+
+Two steps, in this order, and **the order is the whole point.**
+
+**First, validate the base encounter** against § The improved encounter is working if
+(`prototype/VALIDATION.md`). Only then:
+
 Two same-rank towers share a socket: depth 2, no Aces, no power bonus, no run eligibility, each layer
 keeping its own multiplier (`design/05-battlefield.md` § Rank stacking).
 
@@ -351,22 +434,26 @@ keeping its own multiplier (`design/05-battlefield.md` § Rank stacking).
   exposure
 - Stacking instrumentation added to `SessionSnapshot`: match opportunity, stack chosen, replacement
   alternative, capacity state, socket depth, families in stack
-- **The same fixtures and the same organic encounter re-run with the flag on**, compared against the
-  Milestone 5 baseline on forced-replacement frequency, stack-at-capacity rate, run frequency, placement
-  depth, and many-card viability
+- **The same fixtures and the same organic encounter re-run with the flag on**, compared on
+  forced-replacement frequency, stack-at-capacity rate, run frequency, placement depth, and many-card
+  viability
 
-**Done when:** the battery and the arms run identically with the flag off, and the four comparison metrics
+**Done when:** the battery and the arms run identically with the flag off, and the five comparison metrics
 are reportable with it on, without code changes between the two passes.
+`tests/Measurement/SessionBaselineReport.cs` is that report, and it is deliberately the same reducer for
+both passes.
 
-**Order is load-bearing.** The arms were measured *without* stacking at Milestone 5, and that baseline is
-what the second pass is read against. **Do not change the March curve and stacking in the same pass** — the
-arms are pre-committed test arms and a second moving variable destroys the reading. Pre-committed readings
-are in `prototype/VALIDATION.md` § Rank-stacking sequence.
+**Order is load-bearing, and it now has two layers.** The arms were measured without stacking at Milestone
+5, and **the encounter beneath them will have changed by Milestone 9** — so the stacking comparison is read
+against a *re-taken* baseline on the improved encounter, not against the Milestone 5 numbers. The Milestone
+5 baseline still answers the March-arm question and no longer answers this one. **Do not change the March
+curve and stacking in the same pass.**
 
 > **Watch for the failure, not just the effect.** Stacking is in scope because it creates a second
-> placement archetype. If it reads as a forced-replacement escape valve, that is the ship/cut answer.
+> placement archetype. If it reads as a forced-replacement escape valve, that is the ship/cut answer —
+> and *"do not use stacking to compensate for an encounter that is not yet interesting."*
 
-### Milestone 7 — Siege menu probe ⬜ *(after the encounter loop is playtested)*
+### Milestone 10 — Siege menu probe ⬜ *(after the encounter loop is playtested)*
 
 **Menu level only. No persistent geography simulation.** Two visible fronts, one phase clock, four
 preparation actions at fixed costs (`design/12-campaign-time-and-orders.md` § The siege menu probe).
@@ -378,10 +465,71 @@ signals are in `prototype/VALIDATION.md` § The run layer.
 
 **Nothing in it may delay the encounter vertical-slice question.**
 
-### Milestones 8+ — the full run layer ⬜
+### Milestones 11+ — the full run layer ⬜
 
 Three named fronts, one phase, one doctrine project, public Dealer recruitment, one concession — then the
 full three-phase run. See § Run-layer sequencing below for the stage table and its do-not-build column.
+
+---
+
+## Improved-encounter build order
+
+**Stated by the design** (Improved Encounters Handoff § 19), not inferred. Milestones 6–9 are this list
+grouped into deliverable units.
+
+| # | Build | Milestone |
+|---|---|---|
+| 1 | Fully known base wave | 6 |
+| 2 | **Timeline visualization** | 6 |
+| 3 | Exact current-state resolver statistics | 6 |
+| 4 | Counterfactual deltas after commitment | 6 |
+| 5 | Spatial breakpoint enemies | 7 |
+| 6 | Snare → bunch → Barrage interaction | 7 |
+| 7 | Four prototype tower forms | 7 |
+| 8 | Visible lane for the Dealer's hidden card | 6 |
+| 9 | Standing orders integrated into the timeline | 6 |
+| 10 | Wave 2 deliberately disturbs Wave 1 | 8 |
+| 11 | Optional physical opportunity unit | 8 |
+| 12 | Junction as uncertainty hedge | 7 |
+| 13 | **Rank stacking flag** | 9 |
+
+> **Do not add more blackjack actions before this sequence is tested.**
+
+The handoff's separate test order (§ 18) collapses to the same shape and adds one step the build list
+leaves implicit: **validate the base encounter** *before* enabling stacking. That validation is the first
+half of Milestone 9.
+
+**The drift to watch for is building 5–7 before 1–4.** Breakpoints and tower forms are the fun half;
+information is the half the diagnosis actually blames. An encounter with breakpoints the player cannot see
+coming is a *worse* encounter than one without them, because the deterministic forecast is the thing that
+makes the whole design fair.
+
+---
+
+## Improved-encounter open questions
+
+Recorded as stated in Improved Encounters § 23. **All twelve are deliberately left to playtesting rather
+than paper design**, which is a different status from the run-layer questions below — those wait on a
+build, these wait on a player.
+
+| # | Question | Blocks |
+|---|---|---|
+| 1 | Exact Barrage, Siege, Snare, and Ambush coefficients? | Form tuning |
+| 2 | How much slow makes bunching meaningful without making it mandatory? | Snare tuning |
+| 3 | How severe should breakpoint abilities be? | Breakpoint tuning, Saboteur duration |
+| 4 | Does the four-form prototype overload players? | Whether forms ship |
+| 5 | Does exact current-state information make players thoughtful, or just encourage search? | The information contract itself |
+| 6 | How much candidate-preview detail before hover becomes an oracle? | Candidate preview scope |
+| 7 | Do opportunity units create meaningful marginal fourth/fifth-card draws? | The fifth-card middle outcome |
+| 8 | Does Wave 2 counter-rotation justify keeping persistence? | Whether persistence ships |
+| 9 | Does the junction earn its role as an uncertainty hedge? | Junction identity |
+| 10 | Does stacking deepen the encounter or soften forced replacement too much? | Stack ship/cut — **also run-layer Q7** |
+| 11 | Is the March Clock easier to understand through timeline consequences than numbers? | Timeline validation |
+| 12 | Are 2–3 plausible placements per important card achievable through authoring? | The authoring metric itself |
+
+Questions 5, 6, and 12 are the uncomfortable ones, because a bad answer to any of them indicts the pass
+itself rather than a number in it. Q8 is worth reading twice: **it puts persistence on the table**, and
+persistence is currently the reason the encounter boundary and forced replacement exist at all.
 
 ---
 
@@ -393,10 +541,17 @@ inferred. The right-hand column is the load-bearing half.
 | Stage | Build | Do **not** build yet | Status |
 |---|---|---|---|
 | **A. Encounter vertical slice** | Revision 7.1 encounter, deterministic resolver, telemetry, March arms | Run map, doctrine, Dealer recruitment | ✅ Milestones 0–5 |
-| **B. Stacking pass** | Flag-gated rank stacking; second pass of the same fixtures | Stack-specific upgrades or rarity | ⬜ Milestone 6 |
-| **C. Siege menu probe** | Two fronts, phase clock, four orders, visible consequences | Persistent geography simulation | ⬜ Milestone 7 |
+| **A′. Improved encounter** | Timeline, exact consequences, breakpoints, tower forms, Wave 2, opportunity unit | Anything from stages C onward | ⬜ Milestones 6–8 |
+| **B. Stacking pass** | Flag-gated rank stacking; second pass of the same fixtures | Stack-specific upgrades or rarity | ⬜ Milestone 9 |
+| **C. Siege menu probe** | Two fronts, phase clock, four orders, visible consequences | Persistent geography simulation | ⬜ Milestone 10 |
 | **D. Four-encounter mini-run** | Three named fronts, one phase, one doctrine project, public Dealer recruitment, one concession | Three-phase campaign, many Charters | ⬜ |
 | **E. Full run vertical slice** | Three siege phases, geography history, Dealer adaptation lag, card histories, two Charters | Large modifier library, metaprogression | ⬜ |
+
+**Stage A′ is an insertion, not part of the stated sequence.** The run layer's own § 13 goes straight from
+the encounter vertical slice to the stacking pass; the Improved Encounters Handoff puts a whole encounter
+pass between them. The two are compatible — nothing in A′ touches the run layer, and it postpones B rather
+than reordering anything after it — but the sequence is no longer purely as-stated, and that is worth
+knowing when reconciling against either handoff.
 
 **The drift to watch for is skipping C.** Persistent geography is the expensive half; the menu probe is the
 half that answers whether the pressure lands at all. Building D before C means discovering that the
@@ -406,8 +561,8 @@ campaign clock does not land, after paying for a geography simulation.
 
 ## Run-layer open questions
 
-Recorded as stated in the Run Layer Handoff § 15, with current status. **None of these blocks Milestone 6
-except #7**, which Milestone 6 exists to answer.
+Recorded as stated in the Run Layer Handoff § 15, with current status. **None of these blocks Milestones
+6–8 at all**, and #7 is now answered at **Milestone 9** rather than 6.
 
 | # | Question | Blocks | Status |
 |---|---|---|---|
@@ -417,7 +572,7 @@ except #7**, which Milestone 6 exists to answer.
 | 4 | Which encounter-risk events earn Favor, and does the cap of 3 create the intended scarcity? | Favor tuning | ⬜ **Downstream of encounter telemetry**, not of the campaign build |
 | 5 | Final authored state transitions for each of the three outer fronts? | Persistent geography content | ⬜ Stage D/E content |
 | 6 | How many doctrine pieces can coexist before the encounter UI becomes unreadable? | Doctrine launch budget | ⬜ 4–7 is a first pass cleared by nothing |
-| 7 | Does the stacking flag materially reduce forced replacement, or only create a healthy third branch? | Stack ship/cut | ⬜ **Milestone 6 answers this** |
+| 7 | Does the stacking flag materially reduce forced replacement, or only create a healthy third branch? | Stack ship/cut | ⬜ **Milestone 9 answers this** — moved from 6, and now asked of the *improved* encounter |
 | 8 | Final Charter rules after the baseline run loop is proven? | Late-run variety | ⬜ Stage E |
 
 Question 1 is worth reading twice: it is answered for **two lanes, three sockets, one junction.** Front

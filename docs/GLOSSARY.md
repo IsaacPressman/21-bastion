@@ -23,7 +23,26 @@ Skipped entirely on bust.
 arms. **A** is the flat 1.0 control, **B** soft escalation, **C** hard escalation (the curve the design
 specifies). ⚠ The letters were reassigned in Revision 7.1 — pre-7.1 text uses A for the as-specified curve.
 
-**Base wave** — The encounter's own enemy composition, before the Dealer's hand is added to it.
+**Ambush Spade** — Spade **form**: burst and precision. Higher one-time damage, limited trigger count or
+long rearm, strong against one dangerous target crossing its trigger point. Paired with *Snare Spade*.
+
+**Barrage Club** — Club **form**: anti-group. Faster firing, splash damage, weak against heavy armor, and
+the beneficiary of *bunching*. Paired with *Siege Club*.
+
+**Base wave** — The encounter's own enemy composition, before the Dealer's hand is added to it. **Fully
+known before the opening hand** — types, spawn order, timing, lane assignment, and breakpoint abilities.
+It is deliberately **not** a source of uncertainty.
+
+**Breakpoint** — A position on the lane at which an enemy does something if it is still alive: the
+Standard Bearer buffs, the Saboteur disables a tower, the Siege Engine fires at the Bastion, the
+Lane-Switching Raider changes lane. Breakpoints give forward and middle positions **distinct tactical
+jobs**, and **may** eventually reduce or eliminate the need for socket-specific range — but the validated
+range-by-socket values stay authoritative until breakpoints are built and re-measured in isolation
+(`reference/tuning-constants.md` § Known Discrepancies, 12).
+
+**Bunching** — Deterministic column compression. Enemies have a minimum legal spacing and do not pass one
+another, so a follower behind a slowed leader is speed-capped, and the column packs upstream. The
+mechanism behind *Snare → bunch → Barrage*.
 
 **Bastion (stake)** — A lane whose leaks damage Bastion health directly. The lethal lane.
 
@@ -32,6 +51,14 @@ outer districts fail; its final geometry reflects the run.
 
 **Bastion Health** — The run's life total. Reaching zero is **the only ordinary defeat condition.** Hard to
 restore, so that battlefield leakage carries campaign weight. Never spent on upgrades or orders.
+
+**Candidate preview** — What a *possible* placement shows before it is committed: **causal deltas**
+(`Raider leak: 1 → 0`, `Run: inactive → 3-card run`), never one sortable score. A single comparable number
+would let the player brute-force every socket, which is the *solvable-puzzle risk*.
+
+**Counterfactual memory** — After a card is committed, the previous state is preserved long enough to show
+what that card changed. Players learn causality from deltas, not from absolute levels. Step 4 of the
+*tactical loop*.
 
 **Card history** *(run layer)* — A named tag a card earns from resolver events. Grants **no power and no
 experience level** — it creates *eligibility* for a future Promote.
@@ -77,7 +104,13 @@ reaching exactly 21.
 encounter by a **Reserve copy**; it does not stack toward injury or death.
 
 **Family** — A card's defense suit (Club, Spade, and in the full game Heart, Diamond). **Chosen at
-placement and permanent for the wave.** The design's primary commitment.
+placement and permanent for the wave.** The design's primary commitment. Since the Improved Encounters
+Handoff, placement locks **rank, family, form, and socket** together.
+
+**Form** *(also **mode**)* — Which of two behaviors a family deploys as: **Barrage** or **Siege** for
+Clubs, **Snare** or **Ambush** for Spades. Chosen at placement, **locked for the wave**, and presented as
+four direct options rather than a Family → Mode submenu. Forms are a partial replacement for the breadth
+lost when Hearts and Diamonds were cut, not an addition on top of it.
 
 **Favor** — Rare command authority, spent to bend one encounter rule in a bounded way. **First-pass cap:
 3.** Earned by **voluntarily accepting pre-resolution risk and protecting important stakes** — never by
@@ -113,7 +146,8 @@ available. Unrelated to the lane label above.
 four cards, doubled march, reassignable families).
 
 **Junction socket** — A single shared socket firing into either lane at reduced contribution. Face cards
-occupy it without the penalty.
+occupy it without the penalty. Its job is to be the **uncertainty hedge** — covering the located unknown,
+intercepting lane-switchers, trading specialization for flexibility — and it is a *run island*.
 
 **Lane stakes** — What a leak in a given lane costs: Bastion health, the encounter's campaign reward, or
 (full game) Works tower destruction. Assigned per encounter, shown before the opening deal.
@@ -204,8 +238,22 @@ Seven total. Range varies by socket: 4.0, 3.0, 2.0, forward to rear.
 **Spread** *(run layer)* — The baseline placement archetype: distinct consecutive ranks, wide adjacent
 boards, run links and coverage. The opposite pole from *Density*.
 
-**Standing orders** — Pre-committed conditionals set in the adjustment window: Hold, Focus, Trigger on
-group. Modeled exactly by the resolver.
+**Siege Club** — Club **form**: anti-armor and priority target. Slower firing, strong single-target damage,
+armor penetration or high armor-effective damage. Paired with *Barrage Club*.
+
+**Snare Spade** — Spade **form**: flow control. Lower direct damage, slows, and **creates bunching** that
+sets up a Barrage Club. Paired with *Ambush Spade*.
+
+**Opportunity unit** — An optional physical target embedded in the wave — Supply Courier, Standard Wagon —
+that rewards battlefield risk rather than hand quality. **Optional means optional**: failing one must not
+make the encounter feel lost. Partly an answer to the fifth-card binary, since a surviving board can still
+justify another draw. **In the prototype its payout is encounter-local** (a cancelled reinforcement group,
+a buff that never activates) — **never Favor, and never a substitute currency.** The Paymaster, which pays
+Favor, is deferred to the run layer.
+
+**Standing orders** — Pre-committed conditionals: Hold, Focus, Trigger on group. Modeled exactly by the
+resolver. **Editable freely during planning and the adjustment window, locking only when combat begins**,
+and they never consume the one positional move. Their effect must be visible on the *timeline*.
 
 **Strategic order** *(run layer)* — The **single** command issued after most encounters: Hold/Redeploy,
 Fortify, Muster, Train, Raid, Reconnoiter, or Concede. The order *is* the progression decision. Target
@@ -220,8 +268,18 @@ cadence 30–60 s.
 (first pass ~8h), and **never modifies hand-scale March entry.** Reaching zero triggers the scheduled enemy
 action — it never causes defeat.
 
+**Tactical loop** — The player's view of an encounter, in five steps: **Read, Diagnose, Commit, Observe
+delta, Decide.** *Hit is step five, not the entire decision system.* Every encounter system exists to
+strengthen one of the five.
+
+**Timeline** *(encounter timeline)* — The deterministic time-and-path strip per lane: spawn timing, tower
+engagement windows, March advancement, slow and bunching, Hold orders, breakpoints, reinforcements, and
+**the attacks a Hit would cost**. The primary visual language for tactical consequence, and the mechanism
+that keeps cognitive load down without adding a system.
+
 **Vanguard** — The Dealer's upcard, deployed as a unit on the field from before the opening deal. Not a
-number to be translated by the UI.
+number to be translated by the UI. The **hidden** card's rank stays unknown, but **its destination lane is
+visible from the start.**
 
 **Vault (stake)** — A lane whose leaks reduce the encounter's **campaign reward.** ⚠ Revision 7.1 said
 "Chips and Favor"; Chips are cut and Favor is never a reward-floor currency.

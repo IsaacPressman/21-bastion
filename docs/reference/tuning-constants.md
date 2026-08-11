@@ -570,11 +570,22 @@ Two more decisions have no tuning key because they are structural:
 ## Known Discrepancies
 
 Discrepancies 1–7 are live in **Revision 7.1**. Discrepancies 8–11 are between **Revision 7.1 and the Run
-Layer Handoff**. **Resolve deliberately; do not silently pick a side.**
+Layer Handoff**. Discrepancies 12–16 are between the **Improved Encounters Handoff** and what is already
+decided, measured, or built. **Resolve deliberately; do not silently pick a side.**
+
+> **12 is open in a deliberate, structured way** — a hypothesis with a pre-committed experiment and four
+> pre-committed outcomes, not an unsettled argument. **13 and 14 are now decided** (encounter-local
+> opportunity payouts; per-wave composition as a required schema change).
 
 > **Where the two handoffs disagree, the run layer supersedes** — it says so in its own § 0 — **except on
 > encounter-level arithmetic**, which it explicitly does not touch: the March Clock presets, the Formation
 > Strength curve, and the deterministic resolver are unchanged.
+
+> **The Improved Encounters Handoff has no such precedence clause.** It describes itself as consolidating
+> decisions made *after* 7.1 and the run-layer addendum, and as *"intended to be folded into the main
+> gameplay handoff later"* — which is what this pass did. It supersedes nothing automatically. **Where it
+> collides with a measured result, the measurement holds until a new measurement replaces it**, which is
+> the whole substance of entry 12.
 
 ### 1. Arm letters were reassigned — ⚠ material
 
@@ -721,3 +732,172 @@ encounter's own pressure system.
 
 **Do not carry Long Road forward without re-deciding it.** The shape to watch for is broader than the one
 relic: any campaign-side effect whose payload is an encounter-arithmetic number.
+
+### 12. Breakpoints versus range-by-socket as the deep-placement remedy — 🔬 **OPEN MEASURED COLLISION**
+
+> **Status: deliberately open, and open in a specific way.** This is **not** an unresolved argument to be
+> settled by whichever document is read last. It is a **hypothesis with a pre-committed experiment**, and
+> until that experiment runs, **range-by-socket remains the baseline remedy and stays authoritative.**
+
+| Source | Position |
+|---|---|
+| **Milestone 5** (measured) | Range varies by socket — **4.0 / 3.0 / 2.0**. Selected from nine candidates against a rule committed before the numbers were read. Deep dominance gone in all three arms |
+| **Improved Encounters § 9** | **Spatial breakpoint enemies** are the *"baseline solution to deep-placement dominance"*, and *"do not give sockets arbitrary statistical bonuses to create identity"* |
+| **Improved Encounters § 22** | *"Everyone builds deep → fix enemy timing **before touching socket bonuses**"* |
+| **Improved Encounters § 24** | *"Arbitrary socket stat bonuses"* listed under **Explicitly Not Added** |
+
+Range-by-socket **is** a positional statistical difference. Read literally, three sections of the new
+handoff argue against a remedy that is already measured, shipped, and load-bearing — `TowerState.RangeFor`
+is the single derivation and `TuningLoader` validates it.
+
+#### The decision
+
+**Range-by-socket remains the current baseline remedy. Breakpoints are added as a separate tactical-depth
+hypothesis, not as its replacement.** They may eventually replace range asymmetry; **they have not earned
+that yet.**
+
+The Improved Encounters language is therefore **softened wherever it claims breakpoints are the baseline
+solution.** The corrected wording, which governs and is restated in each affected document:
+
+> **Spatial breakpoints give forward and middle positions distinct tactical jobs and may reduce or
+> eliminate the need for socket-specific range. The currently validated range-by-socket values remain
+> authoritative until breakpoints are implemented and re-measured in isolation.**
+
+#### The experiment
+
+Four steps, in this order, and **the isolation is the point**:
+
+1. **Build breakpoint enemies while keeping the current 4.0 / 3.0 / 2.0 range.**
+2. **Measure** — `tests/Measurement/DeepPlacementSweep.cs`, all three arms, as before.
+3. **Run the exact same sweep at flat 3.0 / 3.0 / 3.0.**
+4. **Compare.** Only then decide whether range asymmetry is still necessary.
+
+> **Do not tune breakpoints and range together.** Two moving variables destroy the reading — the same
+> discipline that governs the March arms, the geometry remedy, and the stacking pass.
+
+#### The four outcomes, all valid, all pre-committed
+
+| Result | Decision |
+|---|---|
+| Breakpoints alone solve depth bias | **Flatten range** to 3.0 / 3.0 / 3.0 |
+| Breakpoints help, but not enough | **Retain some range asymmetry** — retune, do not revert |
+| Combined system creates **shallow** dominance | **Reduce** range asymmetry |
+| Breakpoints barely affect placement distribution | **Keep 4.0 / 3.0 / 2.0** unchanged |
+
+Recording all four in advance is what stops the experiment from being read as a referendum on either
+remedy. Note that the third is a live risk rather than a formality: the geometry remedy already overshoots
+into a mild **shallow** lean (`../design/03-march-clock.md`), so breakpoints landing on top of it is the
+outcome most likely to need a correction.
+
+Flagged in `../design/03-march-clock.md`, `../design/06-dealer-and-enemies.md`, `../prototype/SCOPE.md`,
+`../prototype/VALIDATION.md`, and `../ROADMAP.md` § Milestone 7.
+
+### 13. The Paymaster pays Favor, which the prototype does not have — ✅ **RESOLVED**
+
+Improved Encounters § 12 gives the Paymaster opportunity unit *"+1 Favor"*, and § 13 builds a whole
+Favor-earning contract on battlefield risk. **Favor is a run-layer resource explicitly cut from prototype
+scope** (`../design/12-campaign-time-and-orders.md`, `../prototype/SCOPE.md`).
+
+#### The decision
+
+> **No Favor in the prototype. Opportunity-unit payouts must be encounter-local. Favor and
+> Dealer-recruitment rewards are full-run extensions of the same units.**
+
+**And no substitute currency.** Inventing a prototype-only resource to carry these payouts would be
+inventing an economy to test a placement question — the exact shape hard invariant 1 exists to prevent.
+
+#### What an encounter-local payout looks like
+
+The payoff lands **inside the encounter that offered it**, as a change to the wave the player is fighting:
+
+| Unit | Killed before its breakpoint | Allowed through |
+|---|---|---|
+| **Supply Courier** | **Cancels a reinforcement group** scheduled later in this encounter | The reinforcement arrives normally |
+| **Standard Wagon** | Upcoming enemies **lose a visible buff** | The buff activates |
+
+Both are legible on the timeline, both are deterministic, and neither needs a resource to exist.
+
+#### Why this is better for the prototype anyway
+
+The question an opportunity unit exists to ask is:
+
+> **Will a player risk another card for a non-survival tactical gain?**
+
+**Favor is not needed to answer that** — and a currency payout would arguably answer a *different*
+question, since a player chasing a campaign resource is reasoning about the run rather than the
+battlefield. An encounter-local consequence keeps the fifth-card test where the prototype can read it, and
+removes an economy dependency from the critical path.
+
+The run-layer version of the same unit **adds** Favor or recruitment interference on top. That is an
+extension, not a redesign.
+
+### 14. Wave composition is not per-wave — ✅ **DECIDED: required schema change**
+
+**This is not an open design question.** Improved Encounters § 11 requires Wave 2 to change the tactical
+demand, but `EncounterTuning.BaseWave` holds **one** authored composition reused by every wave of the
+encounter — so **the design cannot be expressed at all** in `data/tuning.json` today.
+
+#### The change
+
+`baseWave` becomes **per-wave authored data**, and is renamed, since a plural field called `baseWave` is a
+trap:
+
+```
+encounter:
+  waves:
+    - <wave 1 composition>
+    - <wave 2 composition>
+```
+
+`waves`, `waveDefinitions`, or `baseWaves` — any is clearer than the singular. Note that the existing
+integer `waves` count then becomes **redundant**: the authored list carries it.
+
+**Loader rule:** authored wave count **==** encounter wave count. `TuningLoader` fails the load otherwise,
+in the same style as every other cross-field check it already performs.
+
+#### Wave 2's goal is broader than literal counter-rotation
+
+The handoff's worked example rotates lane roles (Swarm/Armor → Armor/Fast), and **that example should not
+become the rule.** The authoring goal is:
+
+> **Wave 2 creates a materially different tactical demand from Wave 1 and makes prior commitments
+> relevant.**
+
+Three shapes that satisfy it, only the first of which is a literal counter:
+
+| Shape | Example |
+|---|---|
+| **Role reversal** | Swarm lane becomes the armor lane |
+| **New breakpoint** | The same armor column, now led by a Standard Bearer that must die before socket 6 |
+| **Relocated uncertainty** | The same lane roles, but the Dealer reinforcement now threatens the lane that was safe |
+
+Requiring a literal reversal every time would make encounters predictable in exactly the way the
+persistence test is supposed to prevent, and it would waste the two cheaper shapes — both of which reuse a
+composition and change only what it demands.
+
+**Sequencing:** this is a prerequisite for Milestone 8, not for Milestone 6 or 7. The improved encounter
+is not implemented until it is done.
+
+### 15. Standing orders are now editable earlier than 7.1 said — minor, resolved in favour of the new handoff
+
+7.1 § 10 offers standing orders **in the adjustment window**. Improved Encounters § 17 makes them editable
+**freely during planning and the adjustment window**, locking only when combat begins.
+
+**The new handoff governs.** It is a widening rather than a contradiction, it does not touch the one-move
+rule (orders never consumed the move), and it is what lets a Siege Club be told to hold at the moment it
+is placed. Restated in `../design/05-battlefield.md` § Standing orders.
+
+### 16. Four tower forms have no coefficients, and the enemy roster has no breakpoints — build gap, not a conflict
+
+The handoff names Barrage, Siege, Snare, and Ambush behaviors qualitatively and says outright that their
+coefficients are **open prototype questions** (§ 23.1). Likewise the four breakpoint enemies have no
+health, speed, armor, breakpoint position, or effect magnitude.
+
+`data/tuning.json` currently carries `suits.clubs` and `suits.spades` as single behaviors, and four enemy
+types with no breakpoint field. **Every number these systems need would be an invention**, and the § Invented
+for the resolver rule applies: invent them where the resolver cannot run without them, flag them in the
+JSON, and record that a disagreement is a decision to revisit rather than a bug.
+
+The Saboteur's disable duration is the one to watch — § 9 says *"do not begin with permanent
+destruction"* and § 23.3 asks how severe breakpoints should be, so it is a first-pass number by
+construction.

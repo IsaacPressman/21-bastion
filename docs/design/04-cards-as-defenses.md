@@ -1,12 +1,14 @@
 # Cards as Defenses
 
-Source: Handoff Revision 7.1, §§ 7, 9.
+Source: Handoff Revision 7.1, §§ 7, 9. **Prototype tower forms** and the **Snare → bunch → Barrage**
+interaction are from the Improved Encounters Handoff, §§ 7, 8.
 
 ---
 
-## Family is locked at placement
+## Family and mode are locked at placement
 
-> **When a card is drawn, the player chooses its family, and that choice is permanent for the wave.**
+> **When a card is drawn, the player chooses its family and its form, and that choice is permanent for the
+> wave.**
 
 This is **the design's primary commitment**. Family is chosen under uncertainty — before the hidden card
 deploys, before the hand is complete — and cannot be undone once the wave is known.
@@ -16,7 +18,21 @@ would place carelessly during the draw and solve the puzzle at the end, which em
 phase of consequence.
 
 **One tower's** position remains adjustable in the adjustment window (`05-battlefield.md`) — one move for
-the whole board, not one per tower. **Family is never adjustable.**
+the whole board, not one per tower. **Neither family nor mode is ever adjustable.**
+
+### What locks together
+
+Placement commits four things at once, and the set grew by one under the Improved Encounters Handoff:
+
+| Locked at placement | Adjustable afterwards |
+|---|---|
+| **Rank** | — |
+| **Family** (Club / Spade) | Never |
+| **Mode** (Barrage / Siege / Snare / Ambush) | Never |
+| **Socket** | One move total, in the adjustment window |
+
+Standing orders are the deliberate exception: they may be edited freely until combat begins and **do not
+consume the positional move** (`05-battlefield.md` § Standing orders).
 
 If this proves too punishing in testing, the fix is a *limited escape* — **not** reopening the window. The
 run layer names the escape: the **Field Reassignment** doctrine, which lets the *first card placed in each
@@ -35,6 +51,79 @@ single reassignment where an effect permits it. See `../prototype/RISKS-AND-ADDB
 | **Spades** | Traps and Control | Spikes, tar, poison, route switches | *slow* |
 
 **Prototype:** only Clubs and Spades. Hearts and Diamonds are cut — see `../prototype/SCOPE.md`.
+
+---
+
+## Prototype tower forms
+
+> **Status: DECIDED FOR PROTOTYPE.** The prototype keeps two families, and **each family receives two
+> forms.**
+
+These are **not extra complexity layered on top of four full-game families.** They are a replacement for
+part of the tactical breadth that left with Hearts and Diamonds. Read them against `../prototype/SCOPE.md`
+§ Cut from prototype: the cut stands, and this is what fills the hole it left.
+
+### Club — Artillery
+
+| Form | Role | Behavior |
+|---|---|---|
+| **Barrage Club** | Anti-group / splash | Faster firing, splash damage, **weak against heavy armor**, benefits strongly from compressed groups |
+| **Siege Club** | Anti-armor / priority target | Slower firing, strong single-target damage, armor penetration or high armor-effective damage |
+
+Siege is the answer to armored soldiers, Siege Engines, Standard Bearers, and anything else the lane
+names as a priority. Barrage is the answer to a column that is — or can be made — tightly packed.
+
+### Spade — Control
+
+| Form | Role | Behavior |
+|---|---|---|
+| **Snare Spade** | Flow control | Lower direct damage, slows, **creates bunching**, sets up Barrage Clubs |
+| **Ambush Spade** | Burst / precision trap | Higher one-time damage, **limited trigger count or long rearm**, strong against one dangerous target crossing its trigger point |
+
+### The UI rule
+
+The player chooses among **four direct deployment forms** — Barrage Club, Siege Club, Snare Spade, Ambush
+Spade. **Do not build a two-step Family → Mode menu in the prototype.** Internally, family and mode may
+remain separate data fields; that is a storage decision, not an interface one.
+
+### Full-game mode structure — OPEN
+
+**Do not assume four families × two modes = eight live choices per card.** The prototype tests whether
+tactical forms add value at all. The full game might give modes to only some families, make alternate
+forms upgrades, promote a prototype mode to a full family, or ship one form per family with doctrine
+granting the alternative. **No commitment yet.**
+
+---
+
+## Tower-to-tower tactical interaction
+
+> **Status: DECIDED.** The prototype needs at least one interaction where **one tower changes the
+> battlefield so that another tower becomes more effective.**
+
+Runs are positional synergy, but they are still a percentage bonus. The encounter also needs *behavioral*
+synergy — a reason to build a sequence rather than accumulate damage.
+
+### Snare → bunch → Barrage
+
+The deterministic bunching rule lives with enemy movement (`06-dealer-and-enemies.md` § Deterministic
+bunching), because it is a property of how enemies march rather than of the tower that causes it. Its
+consequence here: a Snare Spade compresses the column upstream of the slowed unit, and **Barrage splash
+becomes stronger against that compressed group.** The timeline must visibly show the compression, or the
+interaction may as well not exist (`14-encounter-timeline.md`).
+
+### The three interactions the prototype must support
+
+1. **Control → Splash.** Snare compresses a group; Barrage exploits it.
+2. **Standing Order → Priority Damage.** A Siege Club holds fire for the correct armored or high-priority
+   target instead of spending its cooldown on the first thing in range.
+3. **Early Kill → Enemy Formation Disruption.** Kill a breakpoint enemy before its trigger and prevent a
+   downstream threat entirely (`06-dealer-and-enemies.md` § Spatial breakpoints).
+
+> **The player should be building sequences, not only accumulating DPS.**
+
+The failure signal is specific and worth pre-committing to: if Snare and Barrage are each independently
+useful but **never intentionally combined**, the bunching interaction is too weak or too hard to read —
+and the fix is legibility or magnitude, not a new mechanic.
 
 ---
 

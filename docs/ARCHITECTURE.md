@@ -116,6 +116,46 @@ its own fixed 26-card campaign shoe, while `core/Dealer/DealerHand.cs` draws fro
 
 ---
 
+## What the improved encounter asks of the resolver
+
+The Improved Encounters Handoff is mostly an **information** pass, and information passes are usually
+cheap. This one is not, because three of its requirements reach into the simulation rather than the view.
+
+**1. The Final Forecast must carry a timeline, not just totals.** The timeline is a *presentation of a
+resolver run* — invariant: there is one simulation path, and the visual wave is never a re-simulation.
+`FinalForecast` already carries a timeline for playback; **what it must now also carry is per-tower
+scheduling detail** — attacks each tower receives, when each fires, and which of them a march step would
+remove. `VisibleThreat` deliberately has no timeline, and **that asymmetry must survive**: a timeline drawn
+against the revealed force only would be a Visible Threat wearing the combat contract's clothes.
+
+**2. Bunching couples enemies to each other.** Minimum spacing with no passing means a follower's speed
+depends on the leader's, so **enemies within a lane stop being independently schedulable.** That is a real
+change to `ArmyBuilder`/`Resolver`: today an enemy's position is a function of spawn time and speed; with
+bunching it is a function of the enemy ahead. Still deterministic, still headless — but no longer a closed
+form per unit.
+
+**3. Breakpoints make position trigger behavior.** A breakpoint is a predicate on path position evaluated
+during resolution, and the Saboteur's effect **mutates tower availability mid-wave**. Towers are currently
+immutable for the duration of a wave, which is what makes the forecast a pure function of the board. A
+temporary disable is the first thing that changes a tower's state during resolution, and it is worth
+modelling as a **schedule of availability windows** computed up front rather than as mutation — the
+determinism requirement is easier to hold that way, and it keeps the tower record immutable.
+
+Two smaller consequences worth naming now, because retrofitting them is worse than planning for them:
+
+- **Form is a new dimension on every tower.** `TowerState` gains a mode alongside family, and the four
+  forms need their own tuning block. Family and mode stay separate data fields even though the UI presents
+  four flat options.
+- **Counterfactual memory needs the previous forecast retained**, not recomputed. Keeping the prior
+  `FinalForecast` and diffing is one line; recomputing an old board's forecast against a new army is a
+  category error waiting to happen.
+
+**The Lane-Switching Raider remains the structurally awkward one**, and it is unchanged by this handoff:
+lanes resolve independently, so a unit crossing between them alters the shape of the lane loop rather than
+adding a rule inside a phase. Still stubbed in `core/Resolve/UnmodelledBehaviour.cs`.
+
+---
+
 ## Proposed layout
 
 Built (✅) and planned:
