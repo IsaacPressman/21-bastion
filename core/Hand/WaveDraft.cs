@@ -274,6 +274,11 @@ public sealed class WaveDraft
             RunBonus = 0.0,               // not a hand card; it anchors rather than links
             IgnoresHalfArmor = true,      // King-class
             ExemptFromJunctionPenalty = true,
+
+            // King-class for range and the junction exemption, but NOT an anchor. It is not a placed
+            // card: it picks a free socket afresh every time the board is derived, so protecting its
+            // socket from replacement would block a placement the player is entitled to make.
+            IsAnchor = false,
             Order = StandingOrder.None,
         };
     }

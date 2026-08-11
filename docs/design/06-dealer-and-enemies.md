@@ -1,6 +1,7 @@
 # The Dealer and Enemies
 
-Source: Handoff Revision 7.1, §§ 11, 12.
+Source: Handoff Revision 7.1, §§ 11, 12. **The opposing shoe and public recruitment** are from the Run
+Layer Handoff (consolidated), § 6.
 
 ---
 
@@ -68,9 +69,72 @@ This is the whole point of the Dealer redesign. Resist any UI that reduces the V
 
 ---
 
+## The opposing shoe and public recruitment (full game)
+
+> **Status: DECIDED.** The Dealer adapts **compositionally** — not through hidden difficulty scaling, and
+> not through total-comparison battlefield bonuses. **The Dealer should feel like another commander
+> building an army in public.**
+
+### The opposing-shoe contract
+
+The Dealer has a **fixed-size 26-card campaign shoe.** Normal recruitment **never increases its size.**
+Every recruitment is a **one-for-one replacement**: one visible candidate replaces one existing Dealer
+card.
+
+> A raided King matters because it prevented a specific **4 → King composition shift**, not because it
+> removed one card from an ever-growing pile.
+
+Normal recruitment may not permanently exceed the starting count of any elite category beyond explicit
+roster caps. **Exact rank and family caps are content tuning; the fixed-size shoe is not.**
+
+### Public recruitment
+
+After relevant encounters, the Dealer receives a **visible recruitment row of three candidate cards.** Each
+candidate has a known rank, a known enemy-unit identity, and a visible **replacement target** in the Dealer
+shoe. **The Dealer's intended pairing is marked before the player acts.**
+
+| Rule | First-pass contract |
+|---|---|
+| **Dealer shoe size** | Fixed at **26** under normal campaign recruitment |
+| **Recruitment row** | **3** visible candidates, each paired with the Dealer card it would replace |
+| **Intent** | The Dealer's preferred candidate/replacement pair is **marked before the player acts** |
+| **Cadence** | Normally **1** one-for-one replacement per strategic beat, in phases where recruitment is active |
+| **Raid** | Costs campaign time; lets the player destroy, steal, or block **one** visible candidate before recruitment resolves |
+| **Adaptation lag** | Phase II responds mainly to **Phase I** build signals; Phase III to Phase II. **No immediate counter-picking after a single encounter** |
+| **Target signal** | **Build composition and repeated tactical commitments only.** Never win rate, health, hidden skill estimates, or loss streaks |
+
+### Why raiding is mandatory, not a feature
+
+Without a way to interfere, **Dealer adaptation is experienced as rubber-banding** — the game sees the
+player build something fun and manufactures its counter.
+
+**Public recruitment plus raiding converts adaptation into an arms race.** The player may decide a visible
+King is worth three hours to remove, or **intentionally allow it** because the current formation handles
+siege engines well. That second option is the one that makes it a decision.
+
+Adaptation lag serves the same end: a Dealer that counters last encounter is reacting to the player, and a
+Dealer that counters the *phase* is reacting to the build.
+
+### ⚠ This is a structural change from the prototype
+
+**In the prototype the Dealer draws from the player's shoe.** The upcard and hidden card are removed from
+the same 26-card pile the player draws from (`08-deck-economy-progression.md` § The shoe), and that shared
+pile is what makes the marked-rank display a real reading skill.
+
+The run layer gives the Dealer **its own** fixed 26-card campaign shoe. **These are two different objects
+that happen to share a size**, and the second one does not exist yet — `core/Dealer/DealerHand.cs` resolves
+against the player's remaining shoe today.
+
+Whether the two shoes stay separate at the encounter layer, and what a separate Dealer shoe does to the
+remaining-rank reading skill, is **not settled by either handoff.** Flagged in
+`../reference/tuning-constants.md` § Known Discrepancies. Do not resolve it in passing.
+
+---
+
 ## Dealer personalities (post-prototype)
 
-One per region at launch. Personalities change **draw policy, information, or which units their ranks
+One per **siege phase** at launch (Revision 7.1 said "one per region"; regions became phases —
+`10-run-structure.md`). Personalities change **draw policy, information, or which units their ranks
 produce — never the resolution rule.**
 
 | Personality | Effect |

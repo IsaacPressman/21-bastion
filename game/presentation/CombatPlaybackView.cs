@@ -252,6 +252,12 @@ public partial class CombatPlaybackView : HBoxContainer
 
         _finished = true;
         _nextWaveButton.Visible = true;
+
+        // The boundary is worth naming on the button that crosses it: the towers the player spent the
+        // encounter building do not come back, and finding that out afterwards is the wrong order.
+        _nextWaveButton.Text = _controller.Session.IsFinalWaveOfEncounter
+            ? "Encounter over — begin the next (board resets)"
+            : "Settle and begin next wave";
         UpdateStatus();
         _postWave.Show(_controller.Forecast);
 

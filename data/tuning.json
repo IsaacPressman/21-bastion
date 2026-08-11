@@ -321,6 +321,7 @@
       ],
       "id": "example_wave",
       "vanguardLane": 0,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 3 }],
@@ -339,6 +340,7 @@
       ],
       "id": "battery_severe",
       "vanguardLane": 1,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 5 }],
@@ -349,6 +351,7 @@
       "$comment": "Same shape as battery_severe with a far lighter lane 0 - the mild half of item 1.",
       "id": "battery_mild",
       "vanguardLane": 1,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "swarm_unit", "count": 3 }],
@@ -363,6 +366,7 @@
       ],
       "id": "battery_held",
       "vanguardLane": 1,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 3 }],
@@ -373,6 +377,7 @@
       "$comment": "Even pressure in both lanes: the neutral board for cases that vary the hand, not the field.",
       "id": "battery_even",
       "vanguardLane": 0,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 3 }],
@@ -388,6 +393,7 @@
       ],
       "id": "battery_vault_first",
       "vanguardLane": 0,
+      "waves": 2,
       "laneStakes": ["vault", "bastion"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 4 }],
@@ -397,6 +403,7 @@
     {
       "id": "battery_bastion_first",
       "vanguardLane": 0,
+      "waves": 2,
       "laneStakes": ["bastion", "vault"],
       "baseWave": [
         [{ "enemyId": "armored_soldier", "count": 4 }],

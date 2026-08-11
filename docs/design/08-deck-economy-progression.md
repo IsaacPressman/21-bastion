@@ -1,6 +1,7 @@
 # Deck, Economy, and Progression
 
-Source: Handoff Revision 7.1, §§ 14, 15, 16.
+Source: Handoff Revision 7.1, §§ 14, 15, 16. **Economy, reward verbs, card identity, and exhaustion** are
+from the Run Layer Handoff (consolidated), §§ 4, 7, 10 — which **supersedes 7.1's economy outright**.
 
 Most of this is **full-game intent, not prototype scope.** The Shoe and the Thinning Dilemma are live in
 the prototype; the rest is context for why prototype systems are shaped as they are.
@@ -19,6 +20,15 @@ Prototype shoe is **neutral** — every card may become Club or Spade at full ef
 
 Shoe persistence is what makes the marked rank display (`09-information-and-ui.md`) a real reading skill
 rather than decoration.
+
+> ⚠ **The Dealer gets its own 26-card campaign shoe in the full game** — a *different object* that happens
+> to share a size, built by visible one-for-one replacements (`06-dealer-and-enemies.md` § The opposing
+> shoe). In the prototype the Dealer draws from **this** pile. How the two coexist is unresolved; see
+> `../reference/tuning-constants.md` § Known Discrepancies.
+
+**Rank count is sacred.** The campaign may change a card's character, history, family, modifier, or
+availability — but **nothing the enemy does silently alters blackjack rank distribution.** That constraint
+is what forces the Reserve rule in § Exhaustion below, and it is why **Cut is a player verb only.**
 
 ---
 
@@ -56,7 +66,7 @@ specifically; do not reach for a new bonus system.
 
 ---
 
-## Acquisition
+## Acquisition and the reward verbs
 
 Standard cards, modified cards, face cards, Aces, Jokers, cursed cards.
 
@@ -64,25 +74,89 @@ The deck screen shows **expected cards per hand, native-suit distribution, board
 frequency.** **It does not display a deck score.** (A score is a verdict — see the Reveal Consequences,
 Not Conclusions pillar.)
 
+The baseline progression verbs are **Acquire, Cut, Temper, Repaint, Promote, and Rerank ±1.** **Bind
+remains cut.** These are delivered through **campaign orders, consequences, captured supplies, and named
+services** — not through a generic post-combat card reward every time
+(`12-campaign-time-and-orders.md`).
+
+| Verb | Meaning | Why it is interesting |
+|---|---|---|
+| **Acquire** | Add a rank/card to the shoe | Improves one tactical option **while changing future blackjack distribution** |
+| **Cut** | Remove a chosen card permanently | Chosen probability surgery. **Never inflicted casually by enemies** |
+| **Temper** | Add or change the card's **one** allowed modifier | Changes battlefield behavior without stacking endless upgrades |
+| **Repaint** | Change native family | Changes deck-family structure **without changing blackjack rank** |
+| **Promote** | Grant a named battlefield behavior unlocked by the card's history | Turns memorable play into future identity |
+| **Rerank ±1** | Change rank by one | Weakens or strengthens **tower power, run structure, and blackjack distribution at once** |
+
+Note that Acquire, Cut, and Rerank are the three that move rank distribution, and all three are **player
+choices**. That is the sacred-rank-count rule expressed as a verb list.
+
+---
+
+## Card identity: histories, promotion, and exhaustion
+
+### Histories
+
+Cards may accumulate **named history tags from resolver events** — *Held North Gate During the First
+Breach*, *Broke the Dealer's Siege Engine*.
+
+> **Histories do not automatically grant power or experience levels.** They create **eligibility** for
+> future Promote choices.
+
+**Each card may carry at most one gameplay modifier**; history can remain as flavor beyond that cap. A
+history that paid out automatically would be an XP system, and an XP system makes early cards
+mechanically obsolete rather than differently useful.
+
+### Exhaustion without rank loss
+
+> **Superseding rule.** An exhausted veteran is **replaced for the next encounter by a Reserve copy of the
+> same rank.** The shoe keeps the same rank counts, bust probabilities, and run distribution; only the
+> card's **special identity** is temporarily absent.
+
+- **One exhaustion state only: Fresh or Exhausted.** It does not stack toward injury or death.
+- A **Reserve copy** has the same blackjack rank and base tower power, but **no modifier, no native-family
+  bonus, no veterancy effect, and no history-triggered promotion behavior.**
+- The original returns **after one encounter** unless a special effect says otherwise.
+- **Enemy-inflicted permanent capture is rare, telegraphed, and recoverable.** A captured card is
+  represented by a Reserve of the same rank until the original is recovered — **again preserving rank
+  count.**
+
+This is the cleanest illustration of *rank count is sacred*: the enemy can take your best 7's identity, and
+cannot take a 7 out of your shoe. Losing a card would change bust probability, which would let enemy
+pressure edit blackjack — the one thing the campaign layer may never do.
+
 ---
 
 ## Economy
 
-| Currency | Use |
-|---|---|
-| **Chips** | Buy cards, remove cards, upgrade defenses, repair the Bastion. |
-| **Favor** | Rare. Rerolls, rule manipulation, commander abilities. |
-| **Bastion Health** | The run ends at zero. Hard to restore. |
+> **Chips are cut.** There is no general-purpose money resource in the baseline run. Full treatment in
+> `12-campaign-time-and-orders.md` § Campaign resources.
+
+| Resource | Job | Never used for |
+|---|---|---|
+| **Time** | Ordinary campaign actions — Fortify, Muster, Train, Raid, Reconnoiter, preparation | Tactical rule-breaking or emergency encounter manipulation |
+| **Favor** | Rare command authority: bend one encounter rule in a bounded way. **First-pass cap: 3** | Routine repairs, card acquisition, reranking, or ordinary services |
+| **Bastion Health** | Measures how close the run is to defeat. Hard to restore | Buying upgrades or paying for strategic orders |
+
+Chips and Time were the same job with two mechanisms. Time won because **spending it advances the siege**,
+so a purchase has a battlefield consequence rather than only an opportunity cost.
 
 ### How Favor is earned
 
-**By risk taken and lanes held — not by hand quality.** Specifically: holding a lane the forecast called
-Open, and standing on a hand you could have improved.
+**By voluntarily accepting meaningful pre-resolution risk and successfully protecting important stakes —
+not by hand quality.**
 
 > Rewarding good hands would pay the player twice for the same thing and make strong hands snowball.
 
-**Reward size scales with lanes held, not output produced.** Output is already its own reward; paying for
-it again is the snowball failure mode that persistence multipliers were removed to avoid.
+**Not awarded** for reaching 20/21, for high Formation Strength, or for outperforming a Final Forecast —
+which, being exact, cannot be outperformed at all.
+
+Prototype-eligible triggers: standing while the **Visible Threat** still shows a Bastion lane **Open** and
+then holding it after the reveal; a flagged high-risk hand decision that finishes with **no Bastion
+leakage**; accepting a costly **forced replacement** and preserving the threatened stake.
+
+⚠ **Favor is not the reward floor.** Every encounter has a reward floor so that poor combat and siege-state
+variance cannot compound into a spiral — but it is paid in ordinary campaign terms, never in Favor.
 
 ---
 
@@ -102,23 +176,21 @@ discard-and-redraw, one rank preview.
 > Anything that changes bust thresholds, Formation Strength, or Dealer resolution is a **rule package**,
 > not a modifier — rare, possibly mutually exclusive, closer to a game mode.
 
-### Relics
+### Relics — superseded by Doctrine
 
-*All values unpriced.*
+⚠ **The relic *layer* is cut. The named effects are not.**
 
-| Relic | Effect |
-|---|---|
-| **True Colors** | One off-suit card counts as native per wave. |
-| **Card Counter** | Reveals a band for the Dealer's hidden card. |
-| **Steady Table** | The first bust of a region does not destroy the card. |
-| **Surveyor** | Adds one socket to each lane. |
-| **Bridge Builder** | One card counts as wild in runs. |
-| **Soft Landing** | One Ace-state intervention per encounter. |
-| **Long Road** | Reduces the march curve for one encounter. |
-| **Field Promotion** | One family reassignment per encounter. |
+The run layer makes **Doctrine** the persistent placement-layer progression: four to seven
+**behavior-changing globals** per run, built over one or two encounters, with **"twenty passive percentage
+relics" as the explicitly named failure mode.** Full treatment and the forward mapping of every 7.1 relic —
+including which one is now suspect and which one is load-bearing — is in `13-doctrine-and-charters.md`.
 
-*Field Promotion* is the sanctioned escape hatch for family locking, should testing show it is too
-punishing.
+Two carried forward here because they are cited elsewhere:
+
+- **Surveyor** (one extra socket per lane) is load-bearing wherever it now lives, because extra sockets
+  **unlock the 4-run tier** that prototype geometry cannot reach (`04-cards-as-defenses.md`).
+- **Field Promotion** becomes the **Field Reassignment** doctrine — still the sanctioned escape hatch for
+  family locking, and bounded further: first card per lane, after the Dealer reveal only.
 
 ### Commanders
 

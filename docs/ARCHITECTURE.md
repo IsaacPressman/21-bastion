@@ -81,6 +81,39 @@ The House Rules mode (`design/10-run-structure.md`) is a third driver arriving l
 menu toggles a rule the prototype hardcodes. Expressing those as rule flags from the start makes both House
 Rules and the test arms nearly free.
 
+**Rank stacking is the fourth driver, and it is immediate.** It ships **flag-gated and default off**, and
+the validation procedure requires running the same fixtures and the same arms twice — once with the flag
+off, once on (`prototype/VALIDATION.md` § Rank-stacking sequence). That is the arm pattern exactly: a rule
+toggle selected at launch, applied by rebuilding tuning immutably, never by rewriting the file and never by
+recompiling.
+
+---
+
+## Room left for the run layer
+
+The run layer (`design/10-run-structure.md` through `13-doctrine-and-charters.md`) is deferred, and the
+prototype's job is to avoid foreclosing it. **Three properties are what it needs, and all three are already
+required for other reasons** — which is the useful part: nothing needs building now.
+
+1. **Encounter geometry is data, not constants.** A front state is a geometry override — path length,
+   socket positions, socket count, lane count, lane stakes. All five already live in `data/tuning.json`
+   behind one derivation each, because hard invariant 10 requires it.
+2. **The campaign layer belongs in `core`, not `game`.** A siege menu is a state machine over fronts,
+   clocks, and orders — exactly the kind of thing the regression suites will want to simulate headless.
+   Requirement 3 already forbids the alternative.
+3. **Nothing may cross the encounter boundary as a multiplier.** Geography and card identity persist;
+   Formation Strength does not. `WaveSession.Settle` already reverts persisted towers to ×1.00 at the wave
+   boundary, and the encounter boundary clears the board entirely.
+
+**The one thing that would foreclose the run layer** is a call site reading geometry, stakes, or lane
+count from a literal. That is already a build-review error under hard invariant 10; it is now also a
+structural one.
+
+⚠ **One structural question is open and should not be answered in passing:** the run layer gives the Dealer
+its own fixed 26-card campaign shoe, while `core/Dealer/DealerHand.cs` draws from the *player's* shoe today
+— and that shared pile is what makes the marked-rank display a reading skill. See
+`reference/tuning-constants.md` § Known Discrepancies 9.
+
 ---
 
 ## Proposed layout
@@ -139,6 +172,13 @@ pillar guards against.
 
 **Family locking.** Enforce it in `core`, not in the UI. A rule this central should be impossible to
 violate through a code path, not merely un-clickable.
+
+**Socket occupancy and rank stacking.** A socket currently holds zero or one tower; stacking makes it zero,
+one, or two, matched by **rank** rather than value. Two consequences are worth designing for rather than
+patching in: **run-link detection must exclude a stacked socket** (it becomes a run island, like the
+junction), and **each layer keeps its own `FormationMultiplier`** — which is already possible only because
+`TowerState` stores multiplier and run bonus as separate fields rather than one pre-multiplied number. The
+resolver sees one firing position with two shots sharing socket, range origin, and March exposure.
 
 **Engagement.** A pure function of entry, socket positions, ranges, and path length. It has closed-form
 tables in the design to test against — write those tests first; they caught a real error in Revision 7 (see

@@ -585,6 +585,15 @@ public partial class BattlefieldView : Node2D
             DrawRect(body, fill);
             DrawRect(body, Palette.SurfaceEdge, filled: false, width: 1f);
 
+            // An anchor gets a second, inset border. Forced replacement cannot evict a King, and that
+            // is a property of the tower the player has to be able to read off the board before
+            // choosing where the next card goes. Drawn rather than captioned because the space under
+            // the box is already carrying the damage figure.
+            if (tower.IsAnchor)
+            {
+                DrawRect(body.Grow(-4f), Palette.OnTower, filled: false, width: 1.5f);
+            }
+
             CentredText(RankGlyph(tower.Card), centre + new Vector2(0f, 6f), Palette.OnTower, 18, MonoFont);
 
             // What the rank is actually worth. The power curve is sublinear and it plateaus at the

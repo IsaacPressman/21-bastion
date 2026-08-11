@@ -1,6 +1,7 @@
 # Validation Architecture
 
-Source: Handoff Revision 7.1, § 20 (Test Arms through Regression).
+Source: Handoff Revision 7.1, § 20 (Test Arms through Regression). **The rank-stacking sequence, the siege
+probe, and run-layer instrumentation** are from the Run Layer Handoff (consolidated), §§ 11, 12.
 
 > That is the whole validation architecture.
 
@@ -47,6 +48,10 @@ The same three arms disambiguate the **many-card archetype**, since three separa
 Wide Formation, escalating march, links reduced to runs — all landed on it, and a single build cannot say
 which one killed it.
 
+> ⚠ **Rank stacking is a fourth thing that lands on the many-card archetype**, which is why the stacking
+> pass runs *after* the arms are measured without it. Reading the archetype from a stacking-enabled build
+> would confound the Add-Back 4 trigger.
+
 - Unviable in **C**, viable in **A** → the curve is the cause.
 - Unviable in **all three** → links and board width are insufficient alone, and the archetype needs a
   mechanism — designed then **against a measured deficit rather than guessed at** (Add-Back 4).
@@ -56,6 +61,33 @@ which one killed it.
 The march curve must be **swappable by configuration, not recompilation**, and all three presets ship in
 the first build. This is the most concrete argument for the data-driven tuning approach in
 `../ARCHITECTURE.md`.
+
+---
+
+## Rank-stacking sequence
+
+Rank stacking (`../design/05-battlefield.md`) ships **flag-gated and default off.** The procedure is
+ordered, and the order is the point.
+
+1. Run **Flat, Soft, and Hard** March presets with stacking **disabled**. *(This is the existing arm
+   measurement — done at Milestone 5.)*
+2. Repeat **the same scripted fixtures and organic encounter** with stacking **enabled.**
+3. Compare **forced-replacement frequency, stack-at-capacity rate, run frequency, placement depth, and
+   many-card viability.**
+4. If stacking becomes automatic at capacity, **test one cost in isolation.** **Do not change March and
+   stacking simultaneously.**
+
+Step 4's constraint is the same discipline as the geometry remedy: the arms are pre-committed test arms, so
+a second variable moving at the same time destroys the reading rather than enriching it.
+
+### Pre-committed readings for the stacking pass
+
+| Log | Reading |
+|---|---|
+| **Stack chosen whenever a match existed** | Stacking is **reflexive**, not a choice. Test a spatial or cadence cost — a longer shared cooldown — **not** a flat damage penalty |
+| **Forced-replacement frequency drops sharply** | Stacking is acting as a **safety valve** on one of the three pillars of decision density. That is the ship/cut question, and it is Open Question 7 |
+| **Placement depth returns to a rear cluster** | Concentrated power prefers safe sockets. The geometry remedy is already in, so this is a **stacking** result, not a geometry one — **diagnose geometry before taxing stacks** |
+| **Many-card viability improves only with stacking on** | Stacking is doing Add-Back 4's job. Decide deliberately whether that is the mechanism designed against the measured deficit, or a coincidence |
 
 ---
 
@@ -120,6 +152,53 @@ stand and hit expected output, combined utility.
 
 Deciding what a measurement means *before* taking it is the point. Do not renegotiate these readings after
 seeing the data.
+
+**When the stacking flag is on, also log:** match opportunity, whether the stack was chosen, what the
+replacement alternative was, capacity state, socket depth, and the families in the stack. Readings for
+those are in § Rank-stacking sequence above.
+
+---
+
+## The run layer
+
+Nothing here is built yet, and **nothing here may delay the encounter vertical slice.** It is recorded now
+because the readings are worth pre-committing while the reasoning is fresh, and because two of the logs
+below are prerequisites the encounter build has to satisfy first.
+
+### The siege menu probe
+
+**Build only a menu-level probe, and only after the encounter loop works.** Two visible fronts, one phase
+clock, four preparation actions at fixed costs, **no persistent geography simulation.** Orders and costs
+are in `../design/12-campaign-time-and-orders.md` § The siege menu probe.
+
+**The first probe uses Time only.** Favor enters once encounter telemetry can identify the risk behaviors
+that should earn it — which makes Favor **downstream of the encounter instrumentation**, not of the
+campaign build.
+
+Success signals: players can explain what they bought with time and what they let worsen elsewhere; players
+**sometimes conserve time**; players describe the two clocks as related pressures **without being told the
+analogy**; the campaign menu makes the next encounter **more anticipated, not delayed.**
+
+### Run-layer instrumentation
+
+| System | Log |
+|---|---|
+| **Stacking** | Match opportunity, stack chosen, replacement alternative, capacity state, socket depth, families in stack |
+| **Time** | Hours remaining, order selected, visible alternatives, front transformations triggered, **unused time** |
+| **Dealer recruitment** | Candidate row, replacement targets, intended pair, player raid choice, final one-for-one replacement, **build signals used for next-phase weighting** |
+| **Geography** | Front state before/after, **Lost vs Conceded cause**, path-length changes, socket changes, Last Stand trigger, next-encounter modifier |
+| **Favor** | Favor before/after, earning trigger, spend type, **whether the spend changed the encounter decision or merely erased a mistake** |
+| **Run survival** | Bastion Health, phase time, scheduled assaults, outer fronts remaining, early-vs-scheduled Last Stand, final victory/defeat cause |
+| **Card identity** | History tags earned, Promote choices, exhaustion, Reserve substitutions, modifier distribution |
+| **Cadence** | Time spent on the command screen, backtracking, **number of distinct menus opened**, next-encounter start latency |
+
+Three of these carry their reading in the log line itself, and are worth naming:
+
+- **Unused time.** If players always spend to zero, time is not a resource, it is a checklist.
+- **Whether a Favor spend changed a decision or erased a mistake.** Favor that only undoes errors is a
+  mulligan wearing command authority.
+- **Number of distinct menus opened.** The cadence target is one decision surface; menu count is how that
+  target fails quietly.
 
 ---
 

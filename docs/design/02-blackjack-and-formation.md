@@ -69,7 +69,11 @@ Standing below 17 is legal and costs real output. It is correct when:
 - the formation already answers the wave,
 - sockets are full and the forced replacement is bad,
 - the march step would cost more than the marginal tower gains, or
-- a relic rewards low totals.
+- a doctrine or modifier rewards low totals.
+
+**Rank stacking adds a fifth**, once the flag is on: standing is more attractive when the board already has
+a stack, because a stacked socket has spent its run eligibility and the next card cannot recover it
+(`05-battlefield.md` § Rank stacking).
 
 ---
 

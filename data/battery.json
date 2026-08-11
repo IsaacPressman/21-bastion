@@ -171,8 +171,13 @@
       "$comment": [
         "Item 5, forced replacement. Every socket is taken by a carried-over tower and a 10 is",
         "pending, so something the player built must go. The board is deliberately stocked so that",
-        "the socket the 10 most wants is held by a King - the best replacement is a GOOD tower.",
-        "Forced replacement is one of the three things decision density rests on, not a safety valve."
+        "the socket the 10 most wants is held by a QUEEN - the best replacement is a GOOD tower.",
+        "Forced replacement is one of the three things decision density rests on, not a safety valve.",
+        "It was a King until the anchor rule landed (design/04 § Face cards: a King cannot be",
+        "displaced). An anchored socket makes the good tower UNAVAILABLE rather than expensive, which",
+        "is a different question from the one VALIDATION.md item 5 asks. A Queen is the closest",
+        "substitute that keeps the case intact: same value 10, same face-card range, same junction",
+        "exemption, no anchor. It loses only the King's half-armor bypass."
       ],
       "id": "5-capacity",
       "batteryItem": 5,
@@ -180,10 +185,10 @@
       "encounterId": "battery_even",
       "cardOrder": ["7", "10", "10", "6", "4", "9", "8", "5", "K", "Q"],
       "persisted": [
-        { "rank": "K", "family": "Club", "socket": "L0S0" },
+        { "rank": "Q", "family": "Club", "socket": "L0S0" },
         { "rank": "4", "family": "Club", "socket": "L0S1" },
         { "rank": "3", "family": "Spade", "socket": "L0S2" },
-        { "rank": "K", "family": "Club", "socket": "L1S0" },
+        { "rank": "Q", "family": "Club", "socket": "L1S0" },
         { "rank": "2", "family": "Spade", "socket": "L1S1" },
         { "rank": "5", "family": "Spade", "socket": "L1S2" },
         { "rank": "8", "family": "Club", "socket": "J" }

@@ -1,9 +1,15 @@
 # Prototype Scope
 
-Source: Handoff Revision 7.1, § 20.
+Source: Handoff Revision 7.1, § 20, plus the Run Layer Handoff (consolidated), §§ 11, 13.
 
 **This is a boundary, not a suggestion.** Anything in the Cut list is out of scope unless explicitly
 requested.
+
+> **The run layer does not change this boundary except in one place.** Its own § 11 says so directly:
+> *"Nothing in this run-layer handoff should delay the Revision 7.1 vertical-slice question. **Rank stacking
+> is the only encounter mechanic added now, and it remains behind a flag.**"* The continuous-siege systems
+> wait until the encounter prototype proves that card identity, placement, and hit/stand react to
+> battlefield state.
 
 ---
 
@@ -37,6 +43,19 @@ Revision 6 asked whether drawing at total 8 could be made tense. **That question
 - Standing orders
 - Deterministic, skippable combat
 - **Hit and stand only**
+- **Rank stacking — behind a flag, default off** (`../design/05-battlefield.md` § Rank stacking)
+
+### The one addition: rank stacking
+
+Two same-rank towers may share a socket, depth 2, no Aces, no power bonus, no run eligibility.
+
+**It ships off.** The arms are run **with stacking disabled first**, then the same fixtures are repeated
+with it enabled — the sequence is in `VALIDATION.md` § Rank-stacking sequence. A flag that defaults on
+would fold a new variable into the March Clock measurement, which is the one measurement the prototype
+exists to take.
+
+> Rank stacking is in scope because it creates a **second placement archetype**, not because it relieves
+> socket pressure. If it reads as a forced-replacement escape valve, that is the failure, not the feature.
 
 ---
 
@@ -54,16 +73,26 @@ Revision 6 asked whether drawing at total 8 could be made tense. **That question
 | The Works stake | Third stake type, not needed for triage testing |
 | **Wide Formation** | **Deleted, not suspended.** It refunded the march. |
 | **Pair links, keyword links, Queen command aura** | **Deleted.** One link rule — runs only. |
+| **The entire run layer** | Siege map, fronts, front states, concession, campaign time, Favor, strategic orders, Dealer recruitment, doctrine, Charters, card histories, exhaustion/Reserve. **Deferred, not cut** — see below |
+| **Chips** | **Cut from the design, not merely the prototype.** No general-purpose money resource exists |
 
 Note the distinction: **Dealer comparison is suspended** (scheduled to return). **Wide Formation, pair
 links, keyword links, and the Queen aura are deleted** (they return only against a measured deficit, and
-not in their original form).
+not in their original form). **Chips are cut outright** — Time replaced them.
+
+### The run layer is deferred, in a stated order
+
+It is not "later, sometime." The production sequence is fixed
+(`../ROADMAP.md` § Run-layer sequencing): the encounter vertical slice, then the flag-gated stacking pass,
+then a **menu-level siege probe** with no persistent geography simulation, then a four-encounter mini-run,
+then the full run slice. **Skipping to persistent geography is the drift to watch for**, because it is the
+expensive half and the probe is the half that answers whether the pressure lands at all.
 
 ---
 
 ## Scope drift warnings
 
-Five things will feel like small additions and are not:
+Seven things will feel like small additions and are not:
 
 1. **A second link rule.** Runs-only is a deliberate reduction. Adding pairs back is Add-Back 3 and has a
    trigger condition.
@@ -77,3 +106,11 @@ Five things will feel like small additions and are not:
 5. **A single combined "forecast" number.** There are two contracts answering different questions
    (`../design/05-battlefield.md` § Two Forecasts, Not One). Merging them for convenience is how the
    forecast stops being trusted.
+6. **Any cost or bonus attached to a stack.** Depth 2, same rank, no Aces, no power bonus — and **no damage
+   penalty.** If stacking proves automatic, the first remedy is a **spatial or cadence** cost tested in
+   isolation, never a flat damage tax, and never at the same time as a March change
+   (`../design/05-battlefield.md` § Accepted risks).
+7. **Any campaign effect that reaches into encounter arithmetic.** Campaign time never modifies March
+   entry; no persistent multiplier crosses an encounter boundary. A front may change path length, socket
+   layout, route structure, and lane stakes — all resolver *inputs* — and nothing else
+   (`../design/11-siege-geography.md`).

@@ -1,6 +1,7 @@
 # Key Risks and the Add-Back Sequence
 
-Source: Handoff Revision 7.1, §§ 21, 22.
+Source: Handoff Revision 7.1, §§ 21, 22. **Run-layer risks** are from the Run Layer Handoff
+(consolidated), §§ 1, 2, 3.
 
 ---
 
@@ -26,6 +27,12 @@ instead of reinforcing it, which is the tension this design exists to create.
 
 > **Battlefield-side comparison effects — Vanguard withdrawal, army advancement — do not return in any
 > form.**
+
+⚠ **What "pays the Vault" means changed with the run layer.** Chips are cut, and Favor is never a
+reward-floor currency. Comparison therefore pays the encounter's **ordinary campaign reward** — the
+captured supplies, the exposed service, the Muster or Rerank the Vault would have funded. **It must not pay
+Time**, which would let a blackjack outcome buy campaign actions and re-open the door between the two
+clocks. See `../design/12-campaign-time-and-orders.md`.
 
 **Risk if skipped:** the game ships without an opponent, the blackjack framing becomes vestigial, and it is
 21-solitaire.
@@ -144,6 +151,113 @@ rule.**
 
 > **The core risk, retained across three revisions.** The battery is designed to detect it. If the answer
 > is yes, **the honest response is a structural change, not another tuning pass.**
+
+---
+
+# Part 3 — Rank-Stacking Risks
+
+Stacking is the one encounter mechanic the run layer adds, and it ships **flag-gated, default off**
+(`../design/05-battlefield.md` § Rank stacking). Its three accepted risks each name their own remedy.
+
+## Stacking softens forced replacement
+
+Forced replacement is **one of the three pillars of decision density** — not a safety valve. A mechanic
+that lets a player at capacity absorb a card without tearing anything down is aimed squarely at it.
+
+**Instrumented:** stack-at-capacity rate, replacement rate, and **whether players stack reflexively
+whenever a match exists.**
+
+> If forced-replacement frequency drops sharply with the flag on, that is the ship/cut question answering
+> itself. It is Open Question 7 in `../ROADMAP.md`.
+
+## Stacking may worsen deep-placement dominance
+
+Concentrated power naturally prefers **safe rear sockets.**
+
+> **Diagnose socket geometry before taxing stacks.**
+
+The geometry remedy is already in (range 4.0 / 3.0 / 2.0, forward to rear — `../ROADMAP.md` § Open
+Decision 2), and the residual is a mild *shallow* lean. So a rear cluster appearing in the stacking pass is
+a **stacking** result, not a geometry one — which is exactly why the pass runs after the remedy rather than
+before it.
+
+## Stacking becomes automatic
+
+**Form of the fix:** test **one** cost in isolation, and prefer a **spatial or cadence** cost — a longer
+shared cooldown — over a damage tax.
+
+> **Do not add a flat damage penalty by default.** Stacking already pays three costs: forfeited run
+> eligibility, forfeited coverage breadth, and shared March exposure. A damage penalty is a fourth, and it
+> is the one that makes the trade illegible.
+
+**And do not change March and stacking simultaneously.** The arms are pre-committed test arms; two moving
+variables destroy the reading.
+
+---
+
+# Part 4 — Run-Layer Risks
+
+Not yet live, and none of them may delay the encounter slice. Recorded now for the same reason as the
+add-back triggers: **the remedy is worth writing down while the reasoning is fresh.**
+
+## The campaign becomes a second, larger game
+
+**The named failure of the whole layer.** Target is roughly 70% encounter, 30% campaign, and the guard is
+the first standing constraint: **every campaign mechanic must create a more interesting next encounter, or
+be cut.**
+
+**Detected by** the cadence log — time on the command screen, backtracking, and **number of distinct menus
+opened.** One decision surface is the target; menu count is how that target fails quietly.
+
+## Pressure becomes a punishment spiral
+
+Neglect and loss must **reshape** the siege, never recursively make every later decision worse.
+
+**Three structural guards, all already in the design:** the phase clock **resets per phase** so an early
+mistake stays priceable; neglect draws from a **bounded authored table** whose outcomes are shown in
+advance; and **every encounter has a reward floor.**
+
+> **Losing every outer district is not defeat**, and total concession must leave a winnable Last Stand. A
+> concession system whose logical conclusion is an unwinnable run is not a choice, and players learn that
+> after one run.
+
+## Dealer adaptation reads as rubber-banding
+
+If the game appears to counter the player for playing well, adaptation is a punishment.
+
+**The remedy is structural rather than tuned:** recruitment is **public** (a visible three-card row with
+marked intent), **raidable** (three hours removes a candidate), **lagged** by a full phase, and keyed to
+**build composition only** — never win rate, health, or loss streaks.
+
+> Without a way to interfere, adaptation is rubber-banding. With it, it is an arms race — and the option to
+> **deliberately allow** a visible King is what makes it a decision.
+
+## Concession is never correct
+
+Concession must **sometimes be strategically correct, not merely less bad.** The mechanism is that both
+columns are **certain**: a known cost for a known structural benefit. If a concession's benefit is a
+probability, it is a gamble, and gambling already has a home in this game.
+
+**Detected by** the geography log's **Lost vs Conceded cause** field. If Conceded almost never appears, the
+benefits are too small or too uncertain.
+
+## Favor becomes purple money
+
+**Cap 3, first pass.** Favor is *stored command authority*, and the failure is it degrading into a second
+currency for ordinary purchases.
+
+**Detected by** the Favor log's most pointed field: **whether the spend changed the encounter decision or
+merely erased a mistake.** Favor that only undoes errors is a mulligan wearing a uniform.
+
+## The two clocks fuse
+
+Campaign time and the March Clock are **the same shape and never the same number.** Campaign time must
+never modify hand-scale March entry, and no campaign effect may reach into Formation Strength or the march
+curve.
+
+> The 7.1 relic **Long Road** — "reduces the march curve for one encounter" — violates this directly and is
+> flagged as suspect in `../design/13-doctrine-and-charters.md`. It is the shape to watch for, not just
+> the one instance.
 
 ---
 

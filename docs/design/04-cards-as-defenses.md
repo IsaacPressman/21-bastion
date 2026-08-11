@@ -18,8 +18,10 @@ phase of consequence.
 **One tower's** position remains adjustable in the adjustment window (`05-battlefield.md`) — one move for
 the whole board, not one per tower. **Family is never adjustable.**
 
-If this proves too punishing in testing, the fix is a *limited escape* — a relic, one reassignment per
-encounter — **not** reopening the window. See `../prototype/RISKS-AND-ADDBACKS.md`.
+If this proves too punishing in testing, the fix is a *limited escape* — **not** reopening the window. The
+run layer names the escape: the **Field Reassignment** doctrine, which lets the *first card placed in each
+lane* be reassigned *after the Dealer reveal* (`13-doctrine-and-charters.md`). One Favor may also buy a
+single reassignment where an effect permits it. See `../prototype/RISKS-AND-ADDBACKS.md`.
 
 ---
 
@@ -131,8 +133,14 @@ That is a real trade every time a good run card is drawn, and it costs zero expl
 With three sockets per lane, no cross-lane adjacency, and the junction excluded, **a run of four cannot be
 built.** The +35% tier is cut from the prototype table; **runs cap at 3.**
 
-It returns in the full game when socket counts grow — which makes the **Surveyor** relic (one extra socket
-per lane) meaningfully more interesting than a coverage bump, since it **unlocks a link tier**.
+It returns in the full game when socket counts grow — which makes **Surveyor** (one extra socket per lane)
+meaningfully more interesting than a coverage bump, since it **unlocks a link tier**. Under the run layer
+that effect lives in doctrine, a Charter, or a front's geography rather than in a relic
+(`13-doctrine-and-charters.md`); wherever it lands, the link-tier consequence travels with it.
+
+> **Rank stacking interacts with runs by forfeiting them.** A stacked socket cannot participate in a run at
+> all (`05-battlefield.md` § Rank stacking). That is the whole trade — density buys socket economy by
+> giving up the thing spread is built on — so runs need no stacking-specific rule.
 
 Enforced in data: `TuningLoader` requires exactly the run lengths the geometry can reach, so adding a
 socket fails the load until the 4-run tier is restored rather than silently paying nothing.

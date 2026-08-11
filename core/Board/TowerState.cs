@@ -43,6 +43,26 @@ public sealed record TowerState
     /// <summary>Face cards occupy the junction without the usual contribution penalty.</summary>
     public required bool ExemptFromJunctionPenalty { get; init; }
 
+    /// <summary>
+    /// The King is the anchor: <b>forced replacement cannot evict it</b>
+    /// (docs/design/04-cards-as-defenses.md § Face cards).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A property rather than a read of <c>Card.IsKing</c>, because not every King-carded tower is an
+    /// anchor: the Ace Bastion is built King-class for its range and junction exemption but re-seats
+    /// itself every time the board is derived, so protecting its socket would block a placement for
+    /// no reason.
+    /// </para>
+    /// <para>
+    /// It blocks <i>eviction</i>, not movement. The adjustment window may still relocate or swap an
+    /// anchor: the player chose that, the tower survives it, and reading "cannot be displaced" as
+    /// "cannot be moved" would turn a face card's advantage into a restriction, which is the opposite
+    /// of what the face-card table is describing.
+    /// </para>
+    /// </remarks>
+    public required bool IsAnchor { get; init; }
+
     public required StandingOrder Order { get; init; }
 
     /// <summary>
@@ -86,6 +106,7 @@ public sealed record TowerState
             RunBonus = runBonus,
             IgnoresHalfArmor = family == Family.Spade || card.IsKing,
             ExemptFromJunctionPenalty = card.HasFaceCardRange && tuning.Towers.JunctionFaceCardExempt,
+            IsAnchor = card.IsKing,
             Order = order ?? StandingOrder.None,
         };
     }

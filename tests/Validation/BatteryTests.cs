@@ -218,6 +218,11 @@ public sealed class BatteryTests
 
         Assert.Equal(Tuning.Geometry.TotalSockets, session.Board().Towers.Count);
         Assert.NotEmpty(session.PendingRanks);
+
+        // And the board must not be stocked with anchors. A King cannot be displaced, so a socket
+        // holding one is not a choice the player weighs - it is one they cannot make. Enough of them
+        // and item 5 stops asking "which of your towers goes?" and starts asking nothing at all.
+        Assert.Contains(session.Board().Towers, t => !t.IsAnchor);
     }
 
     /// <summary>

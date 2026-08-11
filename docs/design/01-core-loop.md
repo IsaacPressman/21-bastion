@@ -56,7 +56,13 @@ the type system.
 1. Review which lanes leaked, by how much, and why.
 2. Between waves of an encounter, towers and shoe state persist.
    **Persisted towers revert to ×1.00 Formation Strength.**
-3. After an encounter, take a reward and choose a route.
+3. After an encounter, **issue one strategic order.**
+
+Step 3 is the run layer's cadence rule and it replaces 7.1's "take a reward and choose a route": there is
+**no reward screen, then a map, then a shop** — the order *is* the progression decision, and it often
+decides where the next encounter happens. Target **30–60 seconds**. See
+`12-campaign-time-and-orders.md`. Towers do not survive the encounter boundary; **geography and card
+identity do** (`11-siege-geography.md`).
 
 ---
 

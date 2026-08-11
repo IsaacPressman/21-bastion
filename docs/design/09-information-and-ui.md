@@ -77,6 +77,35 @@ model the design has explicitly rejected.
 
 ---
 
+## The same rules at campaign scale
+
+The run layer restates *Reveal Consequences, Not Conclusions* for the siege map, and it is the same
+constraint with a different surface:
+
+> **The siege map shows possible transformations and known costs, but never tells the player which
+> strategic order is optimal.**
+
+| Shown on the siege map | Never shown |
+|---|---|
+| **Exact, fixed action costs** in hours, before committing | A recommended order, or an ordering of orders |
+| The **guaranteed minimum result** of an action — a Raid always removes at least one known candidate | A projected run-outcome score or win probability |
+| The **bounded authored table** of what neglecting a front can do to it (`11-siege-geography.md`) | Which outcome from that table will occur |
+| The Dealer's **recruitment row, replacement targets, and marked intent** (`06-dealer-and-enemies.md`) | A hidden difficulty state, or any signal derived from win rate or health |
+| A concession's **certain cost and certain benefit**, both | Whether conceding is correct here |
+
+Note the shape: **costs are exact; secondary payoff may be uncertain.** The player must always know what
+they are definitely spending and the minimum they are buying. That is the campaign-scale version of showing
+inputs at full fidelity and performing no synthesis.
+
+**Two campaign-layer prohibitions worth naming as hard as the encounter ones:**
+
+- **No deck score, and no siege-strength score.** A score is a verdict.
+- **Dealer adaptation reads build composition only** — never win rate, health, loss streaks, or a hidden
+  skill estimate. Adaptation the player cannot see the cause of is indistinguishable from rubber-banding,
+  which is why recruitment is public and raidable rather than merely fair.
+
+---
+
 ## Recovery
 
 > **At least one redraw, reserve, or discard tool is always available. A poor card always has a use.**

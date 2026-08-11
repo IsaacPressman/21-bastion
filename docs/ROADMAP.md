@@ -1,14 +1,18 @@
 # Roadmap
 
-**Status: Milestone 4 complete; Milestone 5 in progress.** The wave loop runs headless and the game is
-playable end to end: the phase state machine, the Dealer's draw-to-17, bust with the Overload strike, the
-one-move adjustment window, lane stakes, persistence with x1.00 reversion, and the full presentation layer
-over them. `design/example-wave.md` replays end to end (`tests/Wave/`).
-**Open Decision 2 is closed** — deep placement was measured, confirmed dominant, and remedied by making
-range vary with socket depth (below). Milestone 5, the validation build, is under way.
+**Status: Milestone 5 complete.** The prototype is playable, instrumented, and ready to playtest: the phase
+state machine, the Dealer's draw-to-17, bust with the Overload strike, the one-move adjustment window, lane
+stakes, persistence with ×1.00 reversion, the full presentation layer, three selectable march arms, 17
+scripted battery cases, per-state JSONL logging, and the four regression procedures as one filtered suite.
+`design/example-wave.md` replays end to end (`tests/Wave/`). **Open Decision 2 is closed** — deep placement
+was measured, confirmed dominant, and remedied by making range vary with socket depth (below).
+
+**Next: Milestone 6, the rank-stacking pass** — the one encounter mechanic the Run Layer Handoff adds, and
+the only part of that handoff inside prototype scope.
 
 This roadmap sequences the prototype defined in `prototype/SCOPE.md`. It is derived from the design, not
-stated by it; the handoff specifies *what* to build, not *in what order*.
+stated by it; the handoffs specify *what* to build, not *in what order*. **Milestones 6 onward map onto the
+run layer's own production sequence** (§ Run-layer sequencing below), which *is* stated.
 
 ---
 
@@ -333,6 +337,93 @@ arm there is a clean crossover at 18:
   the simulation's stand-on-17 policy: face-heavy hands reach 17 in two cards and never hit again. Worth
   remembering before treating that column as a difficulty signal.
 
+### Milestone 6 — Rank-stacking pass ⬜
+
+The one encounter mechanic the Run Layer Handoff adds, and **the only part of it inside prototype scope.**
+Two same-rank towers share a socket: depth 2, no Aces, no power bonus, no run eligibility, each layer
+keeping its own multiplier (`design/05-battlefield.md` § Rank stacking).
+
+- Socket occupancy grows a second layer; **`stacking.enabled` defaults to false** and is a launch flag like
+  `--arm`, not a rebuild
+- Run-link detection excludes stacked sockets — a stacked socket is a run island for the same practical
+  reason the junction is
+- Resolver treats a stack as one firing position with two shots, sharing socket, range origin, and March
+  exposure
+- Stacking instrumentation added to `SessionSnapshot`: match opportunity, stack chosen, replacement
+  alternative, capacity state, socket depth, families in stack
+- **The same fixtures and the same organic encounter re-run with the flag on**, compared against the
+  Milestone 5 baseline on forced-replacement frequency, stack-at-capacity rate, run frequency, placement
+  depth, and many-card viability
+
+**Done when:** the battery and the arms run identically with the flag off, and the four comparison metrics
+are reportable with it on, without code changes between the two passes.
+
+**Order is load-bearing.** The arms were measured *without* stacking at Milestone 5, and that baseline is
+what the second pass is read against. **Do not change the March curve and stacking in the same pass** — the
+arms are pre-committed test arms and a second moving variable destroys the reading. Pre-committed readings
+are in `prototype/VALIDATION.md` § Rank-stacking sequence.
+
+> **Watch for the failure, not just the effect.** Stacking is in scope because it creates a second
+> placement archetype. If it reads as a forced-replacement escape valve, that is the ship/cut answer.
+
+### Milestone 7 — Siege menu probe ⬜ *(after the encounter loop is playtested)*
+
+**Menu level only. No persistent geography simulation.** Two visible fronts, one phase clock, four
+preparation actions at fixed costs (`design/12-campaign-time-and-orders.md` § The siege menu probe).
+**Time only — Favor enters later**, once encounter telemetry can identify the risk behaviors that earn it.
+
+The probe tests one thing: whether the **self-similar pressure lands emotionally** — whether paying three
+hours to repair a gate feels like the campaign-scale version of paying a March step to draw. Success
+signals are in `prototype/VALIDATION.md` § The run layer.
+
+**Nothing in it may delay the encounter vertical-slice question.**
+
+### Milestones 8+ — the full run layer ⬜
+
+Three named fronts, one phase, one doctrine project, public Dealer recruitment, one concession — then the
+full three-phase run. See § Run-layer sequencing below for the stage table and its do-not-build column.
+
+---
+
+## Run-layer sequencing
+
+Unlike the milestones above, **this sequence is stated by the design** (Run Layer Handoff § 13), not
+inferred. The right-hand column is the load-bearing half.
+
+| Stage | Build | Do **not** build yet | Status |
+|---|---|---|---|
+| **A. Encounter vertical slice** | Revision 7.1 encounter, deterministic resolver, telemetry, March arms | Run map, doctrine, Dealer recruitment | ✅ Milestones 0–5 |
+| **B. Stacking pass** | Flag-gated rank stacking; second pass of the same fixtures | Stack-specific upgrades or rarity | ⬜ Milestone 6 |
+| **C. Siege menu probe** | Two fronts, phase clock, four orders, visible consequences | Persistent geography simulation | ⬜ Milestone 7 |
+| **D. Four-encounter mini-run** | Three named fronts, one phase, one doctrine project, public Dealer recruitment, one concession | Three-phase campaign, many Charters | ⬜ |
+| **E. Full run vertical slice** | Three siege phases, geography history, Dealer adaptation lag, card histories, two Charters | Large modifier library, metaprogression | ⬜ |
+
+**The drift to watch for is skipping C.** Persistent geography is the expensive half; the menu probe is the
+half that answers whether the pressure lands at all. Building D before C means discovering that the
+campaign clock does not land, after paying for a geography simulation.
+
+---
+
+## Run-layer open questions
+
+Recorded as stated in the Run Layer Handoff § 15, with current status. **None of these blocks Milestone 6
+except #7**, which Milestone 6 exists to answer.
+
+| # | Question | Blocks | Status |
+|---|---|---|---|
+| 1 | What exact socket geometry removes deep-placement dominance without creating a new obvious best depth? | Final March tuning, geography variants | ✅ **Answered for the prototype** — range by socket, 4.0/3.0/2.0. Residual is a mild *shallow* lean. Re-opens for front-specific geometry |
+| 2 | Tuned phase-clock length and action-cost table after the menu probe? | Full siege pacing | ⬜ Needs Stage C |
+| 3 | How strongly should Dealer recruitment react to build signals, and which signals are allowed? | Dealer adaptation model | ⬜ Constrained already: build composition and repeated tactical commitments **only** |
+| 4 | Which encounter-risk events earn Favor, and does the cap of 3 create the intended scarcity? | Favor tuning | ⬜ **Downstream of encounter telemetry**, not of the campaign build |
+| 5 | Final authored state transitions for each of the three outer fronts? | Persistent geography content | ⬜ Stage D/E content |
+| 6 | How many doctrine pieces can coexist before the encounter UI becomes unreadable? | Doctrine launch budget | ⬜ 4–7 is a first pass cleared by nothing |
+| 7 | Does the stacking flag materially reduce forced replacement, or only create a healthy third branch? | Stack ship/cut | ⬜ **Milestone 6 answers this** |
+| 8 | Final Charter rules after the baseline run loop is proven? | Late-run variety | ⬜ Stage E |
+
+Question 1 is worth reading twice: it is answered for **two lanes, three sockets, one junction.** Front
+geography that changes socket layout re-opens it per front, and the measured lesson travels — **uneven
+spacing does not work**, and range-by-depth does.
+
 ---
 
 ## Sequencing rationale
@@ -355,6 +446,11 @@ is *not* built, which is easier to hold when the underlying systems already work
 
 ## Out of scope
 
-See `prototype/SCOPE.md` § Cut from prototype. Note especially the three scope-drift warnings: a second
-link rule, any bonus keyed on card count, and any payout on beating the Dealer. Each has a defined trigger
-and return form in `prototype/RISKS-AND-ADDBACKS.md` — none should arrive ad hoc.
+See `prototype/SCOPE.md` § Cut from prototype. Note especially the scope-drift warnings: a second link
+rule, any bonus keyed on card count, any payout on beating the Dealer, **any cost or bonus attached to a
+stack**, and **any campaign effect that reaches into encounter arithmetic**. Each has a defined trigger and
+return form in `prototype/RISKS-AND-ADDBACKS.md` — none should arrive ad hoc.
+
+**The entire run layer is deferred, not cut**, and its deferral has a stated order (§ Run-layer sequencing
+above). The prototype's job is unchanged: prove that card identity, placement, and hit/stand react to
+battlefield state. Until that is proven, the siege systems wait.

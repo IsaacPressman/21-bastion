@@ -524,6 +524,13 @@ public static class TuningLoader
                 errors.Add($"encounters.{encounter.Id}.vanguardLane ({encounter.VanguardLane}) is not a lane index in 0..{d.Geometry.Lanes - 1}.");
             }
 
+            // Zero would mean an encounter that resets before it is played; a negative count is
+            // nonsense. Persistence has to be bounded by something, and this is the bound.
+            if (encounter.Waves < 1)
+            {
+                errors.Add($"encounters.{encounter.Id}.waves is {encounter.Waves}; an encounter runs at least one wave.");
+            }
+
             if (encounter.BaseWave.Count != d.Geometry.Lanes)
             {
                 errors.Add($"encounters.{encounter.Id}.baseWave has {encounter.BaseWave.Count} lanes but geometry.lanes is {d.Geometry.Lanes}.");

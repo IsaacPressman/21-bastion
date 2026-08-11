@@ -442,6 +442,17 @@ public sealed record EncounterTuning
 
     /// <summary>Base-wave groups per lane, in lane order then spawn order.</summary>
     public required IReadOnlyList<IReadOnlyList<SpawnGroupTuning>> BaseWave { get; init; }
+
+    /// <summary>
+    /// How many waves this encounter runs before the board resets.
+    /// </summary>
+    /// <remarks>
+    /// The bound on persistence (docs/design/05-battlefield.md § Persistence: towers "reset at the
+    /// encounter boundary"). docs/design/10-run-structure.md sizes a regular or elite encounter at two
+    /// waves and a Dealer boss at three, which is what puts socket capacity at the end of an encounter
+    /// rather than somewhere in an open-ended run.
+    /// </remarks>
+    public required int Waves { get; init; }
 }
 
 /// <summary>

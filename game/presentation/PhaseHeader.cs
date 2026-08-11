@@ -13,9 +13,15 @@ namespace Bastion.Game.Presentation;
 /// the player should not have to reverse-engineer which one they are in.
 /// </para>
 /// <para>
-/// It carries no numbers. Totals, multipliers, and per-lane damage belong to the two consequence
-/// panels, which are kept apart on purpose - a banner spanning the whole screen is exactly where a
-/// combined reading would creep in (docs/design/09-information-and-ui.md).
+/// It carries no <i>consequence</i> numbers. Totals, multipliers, and per-lane damage belong to the
+/// two consequence panels, which are kept apart on purpose - a banner spanning the whole screen is
+/// exactly where a combined reading would creep in (docs/design/09-information-and-ui.md).
+/// </para>
+/// <para>
+/// The wave counter is the one number here, and it is admissible because it is neither a hand
+/// consequence nor a battlefield one: it says where in the encounter the player is standing. It has
+/// to be shown somewhere, because the board resets at the encounter boundary and a tower placed on
+/// the last wave does not persist - which changes what a placement is worth.
 /// </para>
 /// </remarks>
 public partial class PhaseHeader : Panel
@@ -23,6 +29,7 @@ public partial class PhaseHeader : Panel
     private WaveController _controller = null!;
     private Label _phase = null!;
     private Label _instruction = null!;
+    private Label _wave = null!;
 
     public void Bind(WaveController controller)
     {
@@ -52,6 +59,11 @@ public partial class PhaseHeader : Panel
         };
         _instruction.AddThemeColorOverride("font_color", Palette.TextDim);
         row.AddChild(_instruction);
+
+        _wave = new Label { VerticalAlignment = VerticalAlignment.Center };
+        _wave.AddThemeFontOverride("font", BastionTheme.MonoFont);
+        _wave.AddThemeFontSizeOverride("font_size", 13);
+        row.AddChild(_wave);
     }
 
     private void Refresh()
@@ -91,5 +103,16 @@ public partial class PhaseHeader : Panel
         _phase.Text = phase;
         _phase.AddThemeColorOverride("font_color", colour);
         _instruction.Text = instruction;
+
+        WaveSession session = _controller.Session;
+        bool last = session.IsFinalWaveOfEncounter;
+
+        // Said plainly on the last wave, because it changes what a placement buys: nothing placed
+        // here survives into the next encounter.
+        _wave.Text = last
+            ? $"WAVE {session.WaveNumber}/{session.Encounter.Waves}  —  board resets after this"
+            : $"WAVE {session.WaveNumber}/{session.Encounter.Waves}";
+
+        _wave.AddThemeColorOverride("font_color", last ? Palette.VisibleThreat : Palette.TextFaint);
     }
 }

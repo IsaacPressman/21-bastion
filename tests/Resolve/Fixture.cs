@@ -39,6 +39,7 @@ internal static class Fixture
     {
         Id = $"isolated_{string.Join("_", groups.Select(g => $"{g.EnemyId}x{g.Count}"))}",
         VanguardLane = 1,
+        Waves = Example.Waves,
         LaneStakes = ["bastion", "vault"],
         BaseWave =
         [

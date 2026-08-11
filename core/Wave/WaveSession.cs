@@ -69,6 +69,9 @@ public sealed record WaveSession
     /// <summary>Whether the single adjustment move has been spent.</summary>
     public required bool MoveSpent { get; init; }
 
+    /// <summary>Which wave of the encounter this is, from one.</summary>
+    public required int WaveNumber { get; init; }
+
     /// <summary>The blackjack hand as it stands.</summary>
     public HandState Hand => Draft.Hand;
 
@@ -82,15 +85,25 @@ public sealed record WaveSession
     /// Opens a wave: draws the Vanguard and the hidden card, deals the opening two, and stands
     /// ready for the first placement. The march has not begun - the opening two are free.
     /// </summary>
+    /// <param name="waveNumber">
+    /// Which wave of the encounter this is, from one. The encounter resets the board when it runs
+    /// out, so the count is what bounds persistence.
+    /// </param>
     public static WaveSession Begin(
         TuningData tuning,
         EncounterTuning encounter,
         Shoe shoe,
-        IReadOnlyList<TowerState>? persisted = null)
+        IReadOnlyList<TowerState>? persisted = null,
+        int waveNumber = 1)
     {
         ArgumentNullException.ThrowIfNull(tuning);
         ArgumentNullException.ThrowIfNull(encounter);
         ArgumentNullException.ThrowIfNull(shoe);
+
+        if (waveNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(waveNumber), waveNumber, "Waves are numbered from one.");
+        }
 
         // Draw order: the Vanguard is revealed first, the hole card is dealt and hidden next, then
         // the player's opening two. All come from the one shoe, so the pile count stays honest.
@@ -114,6 +127,7 @@ public sealed record WaveSession
             PendingRanks = [first, second],
             Phase = WavePhase.AwaitingPlacement,
             MoveSpent = false,
+            WaveNumber = waveNumber,
         };
     }
 
@@ -134,10 +148,21 @@ public sealed record WaveSession
 
         Rank rank = PendingRanks[0];
         IReadOnlyList<Rank> rest = [.. PendingRanks.Skip(1)];
+        bool busts = Draft.Hand.Hit(rank).IsBust;
+
+        // The King is an anchor and forced replacement cannot evict it. Checked here rather than in
+        // WaveDraft because an anchor may be a carried-over tower, and the draft can only see its own
+        // half of the board.
+        //
+        // The bust exemption mirrors the defensive branch below rather than a reachable path: a
+        // busting card never arrives here, because Hit locks the wave outright. It is kept so the two
+        // reads of "a busting card displaces nothing" cannot drift apart.
+        Require(busts || !IsAnchored(socket),
+            $"{socket} holds a King. An anchor cannot be displaced - replace a different tower.");
 
         // A busting card is destroyed and never placed, so it displaces nothing - the same rule
         // WaveDraft.Place applies to the draft's own towers, held to here for persisted ones.
-        IReadOnlyList<TowerState> remaining = Draft.Hand.Hit(rank).IsBust
+        IReadOnlyList<TowerState> remaining = busts
             ? Persisted
             : [.. Persisted.Where(t => t.Socket != socket)];
 
@@ -351,6 +376,30 @@ public sealed record WaveSession
     public double NextStepCost() => MarchClock.NextStepCost(Tuning, Draft.Hand.CardCount);
 
     /// <summary>
+    /// Whether an anchor stands on <paramref name="socket"/> and forced replacement cannot reach it.
+    /// </summary>
+    /// <remarks>
+    /// Public so the interface can decline to <i>offer</i> a placement the session would refuse. It is
+    /// not a second copy of the rule - <see cref="Place"/> still enforces it, and a refusal from the
+    /// board is surfaced as a wanted-move signal rather than swallowed.
+    /// </remarks>
+    public bool IsAnchored(SocketRef socket) =>
+        Board().Towers.Any(t => t.Socket == socket && t.IsAnchor);
+
+    /// <summary>
+    /// Whether this is the encounter's last wave, after which the board resets.
+    /// </summary>
+    /// <remarks>
+    /// docs/design/05-battlefield.md § Persistence: towers persist across the waves of an encounter
+    /// and <b>reset at the encounter boundary</b>. Persistence exists to create scarcity, not to bank
+    /// power - so it is bounded, and the bound is the encounter.
+    /// </remarks>
+    public bool IsFinalWaveOfEncounter => WaveNumber >= Encounter.Waves;
+
+    /// <summary>The wave number the next wave carries: one again once the encounter has run out.</summary>
+    public int NextWaveNumber => IsFinalWaveOfEncounter ? 1 : WaveNumber + 1;
+
+    /// <summary>
     /// This wave with a different shoe, for counterfactual analysis.
     /// </summary>
     /// <remarks>
@@ -366,13 +415,26 @@ public sealed record WaveSession
     /// reshuffles the shoe if it has run low.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Persisted towers carry forward at ×1.00 (docs/design/05-battlefield.md § Persistence), which
     /// is also why a bust is scoped to the current hand: earlier waves' towers are already at ×1.00,
     /// so the bust multiplier cannot drag them down.
+    /// </para>
+    /// <para>
+    /// <b>Nothing carries past the encounter boundary.</b> Persistence is bounded on purpose: it
+    /// exists so that sockets fill during the second wave and every card after that forces a
+    /// replacement, which is scarcity rather than banked power. Unbounded, the board saturates and
+    /// then stops changing - the draw keeps happening but nothing it produces can matter.
+    /// </para>
     /// </remarks>
     public (IReadOnlyList<TowerState> Persisted, Shoe Shoe) Settle()
     {
         Require(Phase is WavePhase.Locked or WavePhase.BustLocked, "A wave settles only after it is locked.");
+
+        if (IsFinalWaveOfEncounter)
+        {
+            return ([], Shoe.ReshuffleIfLow(Tuning));
+        }
 
         double persistedMultiplier = Tuning.FormationStrength.Persisted;
 

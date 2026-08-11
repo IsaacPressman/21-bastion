@@ -118,12 +118,27 @@ public partial class PhaseControls : HBoxContainer
             // What a replacement costs, in the units it costs it in. "Replaces 2" and "replaces 9"
             // read as the same move and are not remotely the same move - what a card displaces is
             // one of the three clauses of the design's claim, so it is worth a number.
+            //
+            // An anchored socket is named and disabled rather than hidden: the King's protection is a
+            // rule the player should be able to read off the board, not infer from a missing button.
+            // The board itself still accepts the click and lets the session refuse it, so a player
+            // who tries anyway is recorded as having wanted the move.
+            bool anchored = held is { IsAnchor: true };
+
             var button = new Button
             {
+                Disabled = anchored,
                 Text = held is null
                     ? Describe(socket)
-                    : $"{Describe(socket)} — replaces {RankLabel(held.Card.Rank)} ({held.ShotDamage:0.0})",
+                    : anchored
+                        ? $"{Describe(socket)} — {RankLabel(held.Card.Rank)}, anchored"
+                        : $"{Describe(socket)} — replaces {RankLabel(held.Card.Rank)} ({held.ShotDamage:0.0})",
             };
+
+            if (anchored)
+            {
+                button.TooltipText = "A King is an anchor: forced replacement cannot evict it.";
+            }
 
             SocketRef captured = socket;
             button.Pressed += () => _interaction.Click(captured);

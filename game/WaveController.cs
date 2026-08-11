@@ -149,11 +149,20 @@ public partial class WaveController : Node
 
     public void Lock() => Apply(s => s.Lock(), "lock");
 
-    /// <summary>Settles the finished wave and opens the next, carrying towers and the shoe forward.</summary>
+    /// <summary>
+    /// Settles the finished wave and opens the next, carrying towers and the shoe forward.
+    /// </summary>
+    /// <remarks>
+    /// Both halves come from the session, which is the only thing that knows where in the encounter
+    /// this wave sat: at the boundary it carries nothing forward and the count restarts at one. The
+    /// shoe crosses the boundary either way - it is the run's deck, not the encounter's.
+    /// </remarks>
     public void SettleAndBeginNextWave()
     {
+        int nextWave = Session.NextWaveNumber;
         (IReadOnlyList<TowerState> carried, Shoe shoe) = Session.Settle();
-        SetSession(WaveSession.Begin(Tuning, Encounter, shoe, carried));
+
+        SetSession(WaveSession.Begin(Tuning, Encounter, shoe, carried, nextWave));
     }
 
     /// <summary>

@@ -213,18 +213,106 @@ load** until the 4-run tier is restored — rather than silently paying nothing.
 
 ---
 
+## Rank stacking — **flag-gated, default off**
+
+`../design/05-battlefield.md` § Rank stacking. **Not implemented — Milestone 6.** No `stacking` section
+exists in `data/tuning.json` yet; the key names below are the intended shape, not current data.
+
+Every one of these is a *rule* rather than a magnitude, which is deliberate: **stacking has no numeric
+bonus to tune.**
+
+| Constant | Value |
+|---|---|
+| `stacking.enabled` | **false** by default — the arms are measured without it first |
+| Match rule | **Same rank**, not blackjack value. J+J stacks; J+Q does not |
+| `stacking.maxDepth` | **2** in the prototype |
+| Aces | **Cannot stack** |
+| Power bonus | **none** |
+| Run eligibility of a stacked socket | **none** — it cannot participate in a run |
+| Families within a stack | May differ; both behaviors originate from the shared socket |
+| Formation Strength | **Each layer keeps its own multiplier.** Stack power is the sum of the layers' individually modified power |
+| Position, range origin, March exposure | **Shared** by both layers |
+
+⚠ **No damage penalty, no shared-cooldown change, no rarity, no stack-specific upgrade.** If stacking
+proves automatic, the *first* remedy is one spatial or cadence cost tested in isolation — and never
+simultaneously with a March change (`../prototype/VALIDATION.md` § Rank-stacking sequence).
+
+---
+
 ## Pacing targets
+
+⚠ **Revised against the run layer and not re-tuned.** "Rewards and deck decisions" and "shops, events,
+routing" are both absorbed by the single strategic order.
 
 | Activity | Budget |
 |---|---:|
 | Hand decisions and placement | 14–19 min |
 | Combat resolution | 6–9 min |
-| Rewards and deck decisions | 6–9 min |
-| Shops, events, routing | 4–6 min |
-| Transitions and boss presentation | 2–4 min |
+| **Strategic orders** | **6–10 min** |
+| Charters, phase transitions, boss presentation | 2–4 min |
 | **Total run** | **30–45 min** |
 
-Run shape: 3 regions, 12 combat encounters, 27 waves.
+Run shape: **3 siege phases** (Encirclement, Breach, Last Stand) — not 3 regions.
+
+| Constant | Value |
+|---|---|
+| Encounter play vs campaign decisions | **~70 / 30**, a pacing target settled by playtest, **not enforced as a timer** |
+| Command-phase cadence | **30–60 s**; Charters and rare major events may run longer |
+| Encounter budget | ⚠ 7.1's **12 combat encounters, 27 waves** is **not restated** by the run layer — see Known Discrepancy 10 |
+
+---
+
+## Run layer — first-pass constants
+
+> **None of this is implemented, and none of it is prototype scope** (`../prototype/SCOPE.md`). Recorded
+> here so that every number in the design stays in one place.
+
+### Campaign time and resources
+
+| Constant | Value | Source |
+|---|---|---|
+| Phase clock | **~8 campaign hours per phase**, config-tunable, **reset per phase** | `../design/12-campaign-time-and-orders.md` |
+| Scout / Reconnoiter | **1h** | |
+| Repair / Fortify | **2h** | |
+| Train / Temper | **2h** | |
+| Raid Dealer Supply | **3h** | |
+| Muster | **1–2h** | |
+| Hold / Redeploy | **0–1h** | |
+| Concede | Varies; often **saves** time | |
+| Favor cap | **3**, first pass | |
+| Chips | **cut** — no general-purpose money resource exists | |
+| Time expiring | Triggers the scheduled Dealer action or assault. **Never causes defeat** | |
+
+### Geography and fronts
+
+| Constant | Value |
+|---|---|
+| Outer fronts | **3** (North Gate, River Works, East Ward) **plus the Bastion** |
+| Front states | **4** — Held, Compromised, Lost, Conceded |
+| Neglect outcome table | **6–8** authored outcomes per front, **shown before the player commits time elsewhere** |
+| Terrain generation | **Authored. No procedural baseline** |
+
+### Dealer recruitment
+
+| Constant | Value |
+|---|---|
+| Opposing shoe size | **26**, fixed under normal recruitment |
+| Recruitment row | **3** visible candidates, each with a visible replacement target and marked Dealer intent |
+| Recruitment cadence | **1** one-for-one replacement per strategic beat, in phases where recruitment is active |
+| Raid effect | Removes, steals, or blocks **1** visible candidate |
+| Adaptation lag | **One phase.** Phase II responds to Phase I signals; Phase III to Phase II |
+| Permitted target signals | **Build composition and repeated tactical commitments only** |
+
+### Doctrine, Charters, and card identity
+
+| Constant | Value |
+|---|---|
+| Doctrine pieces per run | **4–7**, with no expectation that every run reaches the maximum |
+| Doctrine build time | **1–2 encounters** per piece |
+| Charters per run | **2**, normally after the first two siege phases |
+| Modifiers per card | **1** — history beyond that cap is flavor |
+| Exhaustion states | **2** — Fresh or Exhausted. Does not stack toward injury or death |
+| Exhaustion duration | **1 encounter**, substituted by a same-rank **Reserve copy** |
 
 ---
 
@@ -481,7 +569,12 @@ Two more decisions have no tuning key because they are structural:
 
 ## Known Discrepancies
 
-Live in Revision 7.1. **Resolve deliberately; do not silently pick a side.**
+Discrepancies 1–7 are live in **Revision 7.1**. Discrepancies 8–11 are between **Revision 7.1 and the Run
+Layer Handoff**. **Resolve deliberately; do not silently pick a side.**
+
+> **Where the two handoffs disagree, the run layer supersedes** — it says so in its own § 0 — **except on
+> encounter-level arithmetic**, which it explicitly does not touch: the March Clock presets, the Formation
+> Strength curve, and the deterministic resolver are unchanged.
 
 ### 1. Arm letters were reassigned — ⚠ material
 
@@ -564,3 +657,67 @@ soldier already standing at the head of lane one" — one unit.
 number, which is the whole stated point of the Dealer redesign. The consequence is that the worked example's
 lane one is heavier than its prose suggests. Revisit if waves land too hard — this is the single largest
 lever on wave size in the prototype.
+
+### 8. The Vault stake's payload — ⚠ material, resolved in favour of the run layer
+
+Revision 7.1 § 10 says a Vault leak costs **"Chips and Favor"** from the encounter's reward. The run layer
+**cuts Chips outright** and rules that **Favor is never a reward-floor currency** — it is earned only
+through its risk-and-stake conditions. Both halves of 7.1's payload are gone.
+
+**Resolution: a Vault leak reduces the encounter's ordinary campaign reward** — the captured supplies, the
+service exposed, the Muster or Rerank the Vault would have funded. The stake's *job* is unchanged: a lane
+worth reward rather than health, so triage stays a real decision, which is exactly what scripted battery
+item 6 tests.
+
+**Nothing in the prototype changes.** The prototype models the stake as a lane-outcome label and an Overload
+tie-break; it has never paid out a currency. Updated in `../design/05-battlefield.md` and `../GLOSSARY.md`.
+
+⚠ **Add-Back 1 is affected.** "Comparison pays the Vault" must pay the campaign reward and **must not pay
+Time**, or a blackjack outcome would buy campaign actions and re-open the door between the two clocks.
+
+### 9. Two 26-card shoes — ⚠ material, unresolved
+
+The **player's** shoe is 26 cards (two of each rank). The run layer gives the **Dealer** a fixed **26-card
+campaign shoe** built by one-for-one replacements. These are two different objects that happen to share a
+size.
+
+**In the prototype they are the same pile.** `core/Dealer/DealerHand.cs` draws the upcard, the hole card,
+and every draw-to-17 card from the player's remaining `Shoe`, and 7.1 § 11 says so explicitly ("one hidden
+card dealt and **removed from the shoe**"). That shared pile is load-bearing for the marked-rank display —
+the reading skill in `../design/09-information-and-ui.md` depends on Dealer cards leaving the same pile the
+player draws from.
+
+**Neither handoff reconciles them.** Three things are unresolved and none should be decided in passing:
+
+1. Does the encounter still deal the Dealer's hand from the player's shoe, with the campaign shoe governing
+   only *composition*? (Cheapest, and preserves the reading skill.)
+2. Or does the Dealer draw from its own shoe at the table? (Matches the run layer's language, and **weakens
+   the remaining-rank display**, because Dealer draws would no longer inform the player's bust risk.)
+3. Either way, what does "26" mean when the player's shoe is being Acquired into and Cut from across a run?
+
+**No code change is warranted yet.** Flagged so that whoever builds Dealer recruitment does not assume
+option 2 by default.
+
+### 10. The encounter budget is not restated — minor, un-reconciled
+
+Revision 7.1 § 19 specifies **12 combat encounters and 27 waves** across three regions, with a per-region
+composition (two regular, one elite, one boss, two or three noncombat nodes). The run layer replaces
+regions with **three siege phases** and never restates either figure; its production sequence names a
+**four-encounter mini-run** as an intermediate stage and nothing about the full count.
+
+**Treat 12/27 as an un-reconciled first pass.** It is not contradicted, and it is not confirmed against a
+structure where routing is a strategic order rather than a map. The pacing block it feeds (30–45 min) is
+restated by the run layer and does survive.
+
+### 11. Relic effects that violate run-layer constraints — ⚠ material, one instance
+
+The relic layer is superseded by doctrine (`../design/13-doctrine-and-charters.md`), and most of 7.1's
+eight named relics map forward cleanly. **One does not: Long Road**, "reduces the march curve for one
+encounter."
+
+Campaign time must never modify hand-scale March entry, and no campaign effect may reach into Formation
+Strength or the march curve. A reward that softens the march curve is a campaign effect editing the
+encounter's own pressure system.
+
+**Do not carry Long Road forward without re-deciding it.** The shape to watch for is broader than the one
+relic: any campaign-side effect whose payload is an encounter-arithmetic number.

@@ -1,6 +1,6 @@
 # Battlefield
 
-Source: Handoff Revision 7.1, § 10.
+Source: Handoff Revision 7.1, § 10. **Rank stacking** is from the Run Layer Handoff (consolidated), § 2.
 
 ---
 
@@ -38,6 +38,73 @@ tension, **the answer is more sockets, not a softer rule.**
 
 ---
 
+## Rank stacking
+
+> **Status: DECIDED — flag-gated for the prototype.**
+>
+> Rank stacking is included because it creates a **second placement archetype — density versus spread** —
+> **not** because it is a free socket-pressure valve. Run the March Clock test arms with stacking **off**
+> first, then repeat with the flag enabled (`../prototype/VALIDATION.md` § Rank-stacking sequence).
+
+**Two towers of the same rank may occupy one socket as a single stack.** Matching is by **rank, not
+blackjack value**: J+J stacks, **J+Q does not.**
+
+| Rule | Committed behavior |
+|---|---|
+| **Match** | Same rank only |
+| **Depth** | **2** in the prototype |
+| **Aces** | Cannot stack |
+| **Power bonus** | **None** |
+| **Run eligibility** | A stacked socket **cannot participate in a run** |
+| **Family** | The two cards **may have different families**; both behaviors originate from the shared socket |
+| **Formation Strength** | **Each layer retains its own multiplier.** Stack power is the sum of each layer's individually modified power |
+| **Position** | Both layers share socket, range origin, March exposure, and any positional penalties |
+
+**The trade is spatial: save capacity, lose coverage breadth and run eligibility.** Nothing is added on top
+of that — no power bonus, no cooldown change, no keyword interaction.
+
+### Why the multiplier rule changed
+
+An earlier proposal (Addendum A) had a cross-wave stack **inherit the lower multiplier.** That is
+superseded. The lower-multiplier rule adds a **hidden third cost** to stacking and makes a fresh card lose
+power merely for sharing a socket.
+
+Each card therefore **keeps its own Formation Strength contribution.** This also **prevents multiplier
+laundering**, because neither layer changes multiplier when stacked — there is no direction in which power
+can be moved between hands.
+
+Note the interaction with persistence: a persisted tower has already reverted to ×1.00, so stacking a fresh
+card onto it produces one socket carrying one ×1.00 layer and one live-multiplier layer. **That is
+intended.** It is also the only place in the design where two multipliers coexist on one socket, which is
+worth watching in the UI — § Persistence exists partly to keep one live multiplier on screen.
+
+### The two placement archetypes
+
+| | **Spread** | **Density** |
+|---|---|---|
+| **Wants** | Distinct consecutive ranks | Duplicate ranks |
+| **Board shape** | Wide, adjacent, linked | Concentrated strongpoints |
+| **Primary value** | Run adjacency and coverage | Socket economy and multifunction positions |
+| **Acquisition question** | Does this complete a chain? | Do I want another copy of this rank? |
+
+Spread and density pull against each other cleanly, because **run eligibility is exactly what a stack gives
+up.** A hand that stacks is a hand that stopped building chains.
+
+### Accepted risks
+
+1. **Stacking softens forced replacement**, which is one of the three pillars of decision density.
+   Instrument stack-at-capacity rate, replacement rate, and whether players stack **reflexively** whenever
+   a match exists.
+2. **Stacking may worsen deep-placement dominance**, because concentrated power naturally prefers safe rear
+   sockets. **Diagnose socket geometry before taxing stacks.** (The prototype's geometry remedy is already
+   in — `../ROADMAP.md` § Open Decision 2 — so the stacking pass runs against range-by-socket, and a
+   returning depth bias is a stacking result rather than a geometry one.)
+3. **If stacking becomes automatic**, first test a **spatial or cadence cost** such as a longer shared
+   cooldown. **Do not add a flat damage penalty by default** — a damage penalty is a fourth hidden cost on
+   top of forfeited runs, forfeited breadth, and shared March exposure.
+
+---
+
 ## Persistence
 
 Towers persist across the waves of an encounter and reset at the encounter boundary.
@@ -62,6 +129,17 @@ Reverting to ×1.00:
   after that forces a replacement.**
 
 That last point is the real purpose. Persistence exists to create scarcity, not to bank power.
+
+### The encounter boundary is where persistence stops
+
+The run layer states the same rule from the campaign side: **the shape of the ground persists; towers do
+not persist across encounters** (`11-siege-geography.md`). Geography and card identity may carry forward
+**precisely because they do not carry Formation Strength forward** — no compounding multipliers across
+encounters.
+
+So a front's state can change the path length, socket layout, route structure, and lane stakes a battle is
+fought on, and none of that is a multiplier. **A campaign effect that reached into Formation Strength or
+the march curve would be the snowball this reset exists to prevent.**
 
 ---
 
@@ -98,8 +176,10 @@ break a run link — **and it cannot rebuild a board.**
 
 ### If one move proves too tight
 
-**The expansion path is adjustment points granted by relics and commanders, not a higher baseline.** Test
-one-move against Revision 7's every-tower version only after the baseline has been played.
+**The expansion path is adjustment points granted as a reward, not a higher baseline.** Under the run layer
+that means **doctrine and Charters** (`13-doctrine-and-charters.md`) rather than the relic layer 7.1
+assumed; the rule it protects is unchanged. Test one-move against Revision 7's every-tower version only
+after the baseline has been played.
 
 **Instrumented.** If the move is never used, it is a candidate for deletion. If it is decisive, restrict it
 to empty sockets with no swapping — **do not widen it back toward per-tower movement.**
@@ -115,7 +195,7 @@ Lanes are not interchangeable. Each encounter assigns stakes, **shown before the
 | Stake | Effect of a Leak |
 |---|---|
 | **Bastion** | Direct Bastion health damage. The lethal lane. |
-| **Vault** | Chips and Favor lost from this encounter's reward. |
+| **Vault** | This encounter's **campaign reward** is reduced. |
 | **Works** | A placed tower is destroyed and does not persist. *Full game only.* |
 
 > A player who is healthy but poor triages differently from one who is rich and nearly dead.
@@ -123,6 +203,13 @@ Lanes are not interchangeable. Each encounter assigns stakes, **shown before the
 Boss encounters use **Bastion stakes in every lane**.
 
 Prototype uses Bastion and Vault only.
+
+⚠ **The Vault stake's payload changed with the run layer.** Revision 7.1 said a Vault leak costs "Chips and
+Favor." **Chips are cut** (`12-campaign-time-and-orders.md`), and **Favor is never a reward-floor
+currency** — it is earned only through its risk-and-stake conditions. A Vault leak therefore reduces the
+encounter's ordinary campaign reward: the captured supplies, the service exposed, the Muster or Rerank the
+Vault would have funded. The stake's *job* is unchanged — a lane worth reward rather than health, so that
+triage is a real decision. See `../reference/tuning-constants.md` § Known Discrepancies.
 
 ---
 

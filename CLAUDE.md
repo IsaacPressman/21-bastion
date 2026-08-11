@@ -4,7 +4,8 @@ A roguelite tower-defense game in which the player builds each wave's defenses b
 Every drawn card becomes a physical defense; the hand's total sets formation-wide power; the Dealer's
 hand is the army walking toward you.
 
-**Status: Milestone 5 complete — the prototype is playable, instrumented, and ready to playtest.** The
+**Status: Milestone 5 complete — the prototype is playable, instrumented, and ready to playtest. Next is
+Milestone 6, the flag-gated rank-stacking pass.** The
 wave loop, the presentation layer, and the validation build are all in: three march arms and 17 scripted
 battery cases selectable at launch, per-state JSONL logging, the fifth-card measurement, and the four
 regression procedures as one filtered suite. `docs/design/example-wave.md` replays end to end
@@ -29,6 +30,26 @@ withdrew the engagement-fraction output estimates, narrowed the adjustment windo
 forecast into two named contracts, and reassigned the test-arm letters. **Pre-7.1 material is stale in
 specific, load-bearing ways** — see `docs/reference/tuning-constants.md` § Resolved and § Known
 Discrepancies before trusting any remembered number.
+
+**Plus the Run Layer Handoff** (`docs/archive/handoff-run-layer.md`), now incorporated across the docs. It
+governs the *run*; 7.1 governs the *encounter*. **Where they disagree, the run layer wins — and it changes
+no encounter arithmetic**: March Clock presets, Formation Strength, and the resolver are untouched by it.
+What it does change:
+
+- **The product fork is resolved.** A blackjack tower defense with a **siege-shaped run** — roughly 70%
+  encounter, 30% campaign. The campaign must not become a second strategy game.
+- **Three regions become three siege phases** (Encirclement, Breach, Last Stand), one continuous siege over
+  authored persistent fronts. Geography persists across encounters; **towers still do not.**
+- **Chips are cut.** Time pays for campaign actions; **Favor** (cap 3) buys rare rule-bending; **Bastion
+  Health reaching zero is the only ordinary defeat condition.** Losing every district is not defeat.
+- **The relic layer becomes Doctrine** — 4–7 behavior-changing globals, not twenty passive percentages.
+- **The Dealer gets a fixed 26-card opposing shoe** built by public, raidable, one-for-one replacements.
+- **One encounter mechanic is added: rank stacking**, flag-gated and default off — the only part inside
+  prototype scope, and the subject of **Milestone 6**.
+
+Four new collisions with 7.1 are logged as **Known Discrepancies 8–11** (the Vault stake's payload, the two
+26-card shoes, the un-restated encounter budget, and the Long Road relic). Discrepancy 9 is unresolved and
+must not be settled in passing.
 
 ---
 
@@ -195,6 +216,19 @@ require breaking one, stop and say so rather than working around it.
     Overload. Never hardcode a tuning value at a call site.
 11. **Every number is first-pass and expected to be wrong.** No number in the design carries a confidence
     interval, validity window, or tolerance. Those are outputs of playtesting, not inputs.
+12. **The campaign never edits encounter arithmetic.** Campaign time does not modify March entry; no
+    campaign effect touches Formation Strength or the march curve; no multiplier crosses an encounter
+    boundary. A front may change path length, socket layout, route structure, and lane stakes — all
+    resolver *inputs* — and nothing else. The two clocks are the same *shape*, never the same number.
+13. **Rank stacking ships flag-gated and default off.** The arms were measured without it; the second pass
+    is read against that baseline. **Never change the March curve and stacking in the same pass.** And no
+    cost or bonus attaches to a stack — no power bonus, and specifically **no flat damage penalty**.
+14. **Counter the build, never the player.** Dealer adaptation may read build composition and repeated
+    tactical commitments. Never win rate, health, loss streaks, or a hidden skill estimate. This is why
+    recruitment is public and raidable rather than merely fair.
+15. **Rank count is sacred.** The game may change a card's character, history, family, modifier, or
+    availability. **Enemy pressure never alters blackjack rank distribution** — which is why an exhausted
+    or captured card is replaced by a same-rank Reserve copy rather than removed.
 
 ---
 
@@ -211,13 +245,21 @@ Read the specific doc for the system you are touching. Do not work from memory o
 | `02-blackjack-and-formation.md` | Blackjack rules, Formation Strength curve, card power curve |
 | `03-march-clock.md` | Escalating march, engagement geometry, exactly-21 pullback |
 | `04-cards-as-defenses.md` | Family locking, suit identities, face cards, Aces, run links |
-| `05-battlefield.md` | Sockets, persistence, adjustment window, lane stakes, standing orders, resolver |
-| `06-dealer-and-enemies.md` | Dealer as wave generator, Dealer cards as units, enemy stats |
+| `05-battlefield.md` | Sockets, **rank stacking**, persistence, adjustment window, lane stakes, standing orders, resolver |
+| `06-dealer-and-enemies.md` | Dealer as wave generator, Dealer cards as units, enemy stats, **the opposing shoe and public recruitment** |
 | `07-bust-and-overload.md` | Bust handling, capped Overload |
-| `08-deck-economy-progression.md` | Shoe, thinning dilemma, economy, relics, commanders |
-| `09-information-and-ui.md` | What is shown and what is never shown |
-| `10-run-structure.md` | Regions, encounter budget, escalation, modes |
+| `08-deck-economy-progression.md` | Shoe, thinning dilemma, **reward verbs, card identity, exhaustion, economy** |
+| `09-information-and-ui.md` | What is shown and what is never shown, at both scales |
 | `example-wave.md` | A fully worked wave — use as an implementation acceptance test |
+
+**Run layer** — `docs/design/`, deferred and **not prototype scope** except the rank-stacking flag (in `05`)
+
+| File | Covers |
+|---|---|
+| `10-run-structure.md` | The continuous siege: run pillars, standing constraints, three phases, victory/defeat/Last Stand, cadence, run memory, modes |
+| `11-siege-geography.md` | Persistent authored fronts, the four front states, neglect, concession |
+| `12-campaign-time-and-orders.md` | Phase clock, Time/Favor/Bastion Health, the seven strategic orders, shops and rewards, the menu probe |
+| `13-doctrine-and-charters.md` | Doctrine as the placement-layer progression, Charters, what happened to relics, commanders |
 
 **Validation build** — `core/Validation/`, `game/Startup/`, `game/telemetry/`
 
@@ -250,8 +292,10 @@ Read the specific doc for the system you are touching. Do not work from memory o
 
 **Archive** — `docs/archive/`
 
-- `handoff-revision-7-1.md` — **current.** The unsplit handoff these docs are derived from. Its § 24 lists
-  every correction made over Revision 7.
+- `handoff-run-layer.md` — **current, for the run.** Rank Stacking & Continuous Siege, consolidated.
+  Supersedes 7.1 where they disagree; changes no encounter arithmetic.
+- `handoff-revision-7-1.md` — **current, for the encounter.** Its § 24 lists every correction made over
+  Revision 7.
 - `handoff-revision-7.md` — **superseded.** Kept for history. Several of its numbers and two of its
   instructions are now known to be wrong; do not cite it.
 
@@ -289,7 +333,13 @@ disagreement is a bug — flag it.
 - **Core stays engine-free.** `using Godot;` in `core/` is a build error by design, not a style
   preference — the regression suites must run headless.
 - **Prototype scope is a boundary, not a suggestion.** `docs/prototype/SCOPE.md` lists what is cut. Do not
-  build Hearts, Diamonds, Split, Double Down, relics, commanders, or metaprogression unless asked.
+  build Hearts, Diamonds, Split, Double Down, commanders, metaprogression, or **any part of the run layer**
+  — siege map, fronts, campaign time, Favor, strategic orders, Dealer recruitment, doctrine, Charters, card
+  histories — unless asked. Relics are superseded by Doctrine and are not to be built either.
+- **Geometry, stakes, and lane count are data, and that is what keeps the run layer possible.** A front
+  state is a geometry override. A call site reading path length, socket positions, socket count, lane
+  count, or lane stakes from a literal forecloses the campaign layer — which is already prohibited by
+  invariant 10, and is now structural as well (`docs/ARCHITECTURE.md` § Room left for the run layer).
 - **Cite the doc when implementing a rule.** A comment naming the section beats restating the rule.
 - **When a design question is genuinely unanswered**, say so and point at the risk register rather than
   inventing a rule. Several gaps are deliberate.

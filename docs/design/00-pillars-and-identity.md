@@ -1,6 +1,21 @@
 # Pillars and Identity
 
-Source: Handoff Revision 7.1, §§ 0–2 and Final Gameplay Identity.
+Source: Handoff Revision 7.1, §§ 0–2 and Final Gameplay Identity. **The resolved product fork** is from the
+Run Layer Handoff (consolidated), §§ 0, 16.
+
+---
+
+## The resolved product fork
+
+> **DECIDED: 21 Bastion is a blackjack tower defense with a siege-shaped run.**
+
+The **encounter remains the reason to play.** The campaign layer occupies roughly the supporting third of
+the experience — a conceptual target of **70% encounter play, 30% campaign decisions**, settled by playtest
+pacing rather than enforced as a timer. It **must not become a separate grand-strategy game.**
+
+The first standing run-layer constraint follows directly, and it is the one to check a campaign proposal
+against: **every campaign mechanic must create a more interesting next encounter, or be cut.** See
+`10-run-structure.md`.
 
 ---
 
@@ -93,6 +108,27 @@ grows every time they draw. **Nothing on screen adds those together.**
 > A version that hides the consequences is unfair. A version that shows the answer is solved. A version
 > where every decision can be revised after the reveal has no decisions in it at all. Revision 7 is aimed
 > at the space between those three.
+
+### The same question at three magnifications
+
+The run layer's contribution to identity is that it **repeats the encounter's question rather than adding a
+second game.**
+
+| Scale | The question |
+|---|---|
+| **Hand** | Is another card worth the ground it costs? |
+| **Lane** | What can be left uncovered? |
+| **Campaign** | What can be left undefended? |
+
+The same command principle, three times over, **without sharing a single hidden score.** Time determines
+when the enemy acts, territory determines the position fought from, Favor permits rare exceptions, and
+Bastion Health alone determines whether the run is still alive.
+
+> **North-star sentence: Build the defense you need, spend only the ground you can afford, and decide what
+> you are willing to lose.**
+
+A memorable run should not be a list of relics — it should be a **siege history**. See
+`10-run-structure.md` § Run memory.
 
 ---
 
