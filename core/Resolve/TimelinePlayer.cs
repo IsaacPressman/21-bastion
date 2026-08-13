@@ -87,6 +87,17 @@ public sealed record PlaybackFrame
 /// Discrete effects - shots, slows, deaths, leaks, the Overload burst - come from
 /// <see cref="EventsBetween"/>, so a renderer flashes exactly the events the resolver recorded.
 /// </para>
+/// <para>
+/// <b>It takes a <see cref="WaveTimeline"/> and nothing else.</b> That signature is what keeps a
+/// <see cref="VisibleThreat"/> unplayable: its <see cref="RevealedTimeline"/> will not compile here, so
+/// the revealed force can be drawn on the encounter timeline and can still never be animated as though
+/// it were the combat contract.
+/// </para>
+/// <para>
+/// The unit tracks come from <see cref="TimelineStrip"/> rather than being rebuilt here. Both surfaces
+/// read the same recording, and a second walker over the same events would be a second account of it -
+/// the exact drift the recording exists to make impossible.
+/// </para>
 /// </remarks>
 public sealed class TimelinePlayer
 {
@@ -103,7 +114,7 @@ public sealed class TimelinePlayer
         _timeline = timeline;
         _pathLength = tuning.Geometry.PathLength;
         _lanes = tuning.Geometry.Lanes;
-        _tracks = BuildTracks(timeline, tuning);
+        _tracks = TimelineStrip.From(timeline, tuning).Units;
     }
 
     /// <summary>The wave's length. Jump the cursor here to skip playback to its recorded end.</summary>
@@ -178,142 +189,4 @@ public sealed class TimelinePlayer
     /// </remarks>
     public IReadOnlyList<TimelineEvent> EventsBetween(double from, double to) =>
         [.. _timeline.Events.Where(e => e.Time > from && e.Time <= to)];
-
-    private static IReadOnlyList<UnitTrack> BuildTracks(WaveTimeline timeline, TuningData tuning)
-    {
-        double slowMultiplier = tuning.Suits.Spades.SlowMultiplier;
-
-        Dictionary<int, UnitTrack> tracks = new();
-
-        // Spawns anchor every track. A unit with no spawn cannot appear, so this is the whole roster.
-        foreach (SpawnEvent spawn in timeline.Events.OfType<SpawnEvent>())
-        {
-            EnemyTuning type = tuning.Enemy(spawn.EnemyId);
-            tracks[spawn.SpawnIndex] = new UnitTrack
-            {
-                SpawnIndex = spawn.SpawnIndex,
-                EnemyId = spawn.EnemyId,
-                LaneIndex = spawn.LaneIndex,
-                Source = spawn.Source,
-                SpawnTime = spawn.Time,
-                StartPosition = spawn.Position,
-                MaxHealth = type.Health,
-                BaseSpeed = type.Speed,
-                SlowMultiplier = slowMultiplier,
-                // Absent an exit event, the unit is treated as surviving to the wave's end.
-                ExitTime = timeline.DurationSeconds,
-                Exit = UnitExit.Survived,
-            };
-        }
-
-        foreach (TimelineEvent evt in timeline.Events)
-        {
-            switch (evt)
-            {
-                case ShotEvent shot when tracks.TryGetValue(shot.TargetSpawnIndex, out UnitTrack? hit):
-                    hit.Damage.Add((shot.Time, shot.DamageApplied));
-                    break;
-
-                case SlowEvent slow when tracks.TryGetValue(slow.SpawnIndex, out UnitTrack? slowed):
-                    slowed.Slows.Add((slow.Time, slow.UntilTime));
-                    break;
-
-                case DeathEvent death when tracks.TryGetValue(death.SpawnIndex, out UnitTrack? dead):
-                    dead.SetExit(death.Time, UnitExit.Died, leakDamage: 0);
-                    break;
-
-                case LeakEvent leak when tracks.TryGetValue(leak.SpawnIndex, out UnitTrack? leaked):
-                    leaked.SetExit(leak.Time, UnitExit.Leaked, leak.LeakDamage);
-                    break;
-
-                case OverloadEvent overload:
-                    // The burst removes its victims without a DeathEvent (see OverloadEvent): it is the
-                    // record that they died, so credit it as their exit. Every unit it touched is
-                    // credited its own recorded share, so the survivor the spill stopped short of keeps
-                    // the reduced health the resolver gave it rather than reading as untouched.
-                    foreach (OverloadHit hit in overload.Hits)
-                    {
-                        if (!tracks.TryGetValue(hit.SpawnIndex, out UnitTrack? struck))
-                        {
-                            continue;
-                        }
-
-                        struck.Damage.Add((overload.Time, hit.DamageApplied));
-
-                        if (hit.Killed)
-                        {
-                            struck.SetExit(overload.Time, UnitExit.Died, leakDamage: 0);
-                        }
-                    }
-
-                    break;
-            }
-        }
-
-        return [.. tracks.Values.OrderBy(t => t.SpawnIndex)];
-    }
-
-    private enum UnitExit
-    {
-        Survived,
-        Died,
-        Leaked,
-    }
-
-    /// <summary>Everything known about one unit's life, precomputed for O(1)-per-query frames.</summary>
-    private sealed class UnitTrack
-    {
-        public required int SpawnIndex { get; init; }
-        public required string EnemyId { get; init; }
-        public required int LaneIndex { get; init; }
-        public required SpawnSource Source { get; init; }
-        public required double SpawnTime { get; init; }
-        public required double StartPosition { get; init; }
-        public required double MaxHealth { get; init; }
-        public required double BaseSpeed { get; init; }
-        public required double SlowMultiplier { get; init; }
-
-        public double ExitTime { get; set; }
-        public UnitExit Exit { get; set; }
-        public int LeakDamage { get; set; }
-
-        public List<(double Time, double Amount)> Damage { get; } = new();
-        public List<(double Start, double Until)> Slows { get; } = new();
-
-        public void SetExit(double time, UnitExit exit, int leakDamage)
-        {
-            ExitTime = time;
-            Exit = exit;
-            LeakDamage = leakDamage;
-        }
-
-        /// <summary>Remaining health fraction from applied damage recorded up to and including <paramref name="time"/>.</summary>
-        public double HealthFractionAt(double time)
-        {
-            double dealt = Damage.Where(d => d.Time <= time).Sum(d => d.Amount);
-            return Math.Max(0.0, (MaxHealth - dealt) / MaxHealth);
-        }
-
-        public bool IsSlowedAt(double time) => Slows.Any(s => time >= s.Start && time < s.Until);
-
-        /// <summary>
-        /// Cosmetic path position. A leaker is interpolated exactly between its spawn and the wall so it
-        /// arrives when the recorded leak says (which already reflects any slow); everything else moves
-        /// at base speed and is clamped at the wall - its precise sub-path position at death is not a
-        /// consequence the forecast depends on.
-        /// </summary>
-        public double PositionAt(double time, double pathLength)
-        {
-            double elapsed = time - SpawnTime;
-
-            if (Exit == UnitExit.Leaked && ExitTime > SpawnTime)
-            {
-                double span = ExitTime - SpawnTime;
-                double progress = Math.Clamp(elapsed / span, 0.0, 1.0);
-                return StartPosition + ((pathLength - StartPosition) * progress);
-            }
-
-            return Math.Clamp(StartPosition + (BaseSpeed * elapsed), StartPosition, pathLength);
-        }
-    }
 }

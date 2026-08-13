@@ -27,6 +27,19 @@ internal static class Layout
     /// <summary>The information column down the right: the two consequence panels and the review.</summary>
     internal const float RightColumnWidth = 396f;
 
+    /// <summary>
+    /// The encounter timeline, between the board and the action bar.
+    /// </summary>
+    /// <remarks>
+    /// <b>Its own region, because it is its own axis.</b> The board is path space - where things are
+    /// - and the timeline is time space - when they happen. Both are primary and neither can be
+    /// folded into the other: a lane band already spends its width on path position, so a second
+    /// x-axis inside it would be two different scales in one strip. The timeline is called the
+    /// primary visual language of the encounter (docs/design/14-encounter-timeline.md), and it is
+    /// sized to be readable rather than glanceable.
+    /// </remarks>
+    internal const float TimelineHeight = 168f;
+
     /// <summary>Breathing room between the board's outer edge and the lanes themselves.</summary>
     internal const float BoardPadLeft = 76f;
     internal const float BoardPadRight = 34f;
@@ -38,5 +51,17 @@ internal static class Layout
         0f,
         HeaderHeight,
         Mathf.Max(320f, viewport.X - RightColumnWidth),
-        Mathf.Max(220f, viewport.Y - HeaderHeight - ActionBarHeight));
+        Mathf.Max(220f, viewport.Y - HeaderHeight - TimelineHeight - ActionBarHeight));
+
+    /// <summary>The strip the encounter timeline owns, directly beneath the board.</summary>
+    /// <remarks>
+    /// Derived from the same numbers as <see cref="BoardArea"/> and stacked against it rather than
+    /// anchored independently, so the two cannot drift apart or overlap when the window resizes.
+    /// </remarks>
+    internal static Rect2 TimelineArea(Vector2 viewport)
+    {
+        Rect2 board = BoardArea(viewport);
+
+        return new Rect2(0f, board.Position.Y + board.Size.Y, board.Size.X, TimelineHeight);
+    }
 }

@@ -4,13 +4,20 @@ A roguelite tower-defense game in which the player builds each wave's defenses b
 Every drawn card becomes a physical defense; the hand's total sets formation-wide power; the Dealer's
 hand is the army walking toward you.
 
-**Status: Milestone 5 complete — the prototype is playable, instrumented, and ready to playtest. Next is
-Milestone 6, the encounter information pass.** ⚠ **The milestones after 5 were renumbered** by the Improved
-Encounters Handoff: the flag-gated rank-stacking pass was Milestone 6 and is **now Milestone 9**. The
-wave loop, the presentation layer, and the validation build are all in: three march arms and 17 scripted
-battery cases selectable at launch, per-state JSONL logging, the fifth-card measurement, and the four
-regression procedures as one filtered suite. `docs/design/example-wave.md` replays end to end
-(`tests/Wave/`). See `docs/ROADMAP.md`.
+**Status: Milestone 6 complete — the encounter information pass is in. Next is Milestone 7, tactical
+depth.** ⚠ **The milestones after 5 were renumbered** by the Improved Encounters Handoff: the flag-gated
+rank-stacking pass was Milestone 6 and is **now Milestone 9**. The wave loop, the presentation layer, and
+the validation build are all in: three march arms and 17 scripted battery cases selectable at launch,
+per-state JSONL logging, the fifth-card measurement, and the four regression procedures as one filtered
+suite. `docs/design/example-wave.md` replays end to end (`tests/Wave/`). See `docs/ROADMAP.md`.
+
+**What Milestone 6 added:** the fully known base wave with spawn timing; the **encounter timeline** as its
+own region under the board (`x = time`, one row per lane); exact per-lane committed-state statistics —
+which enemy gets through, first leak time, armor-effective required/delivered/shortfall, attacks per tower;
+counterfactual memory of the last committed card; the hidden card's destination lane; standing orders
+editable throughout and named on the timeline; candidate deltas with **no sortable scalar**; and hover
+instrumentation with an exhaustive-search flag. **Two findings and one bug are recorded in
+`docs/ROADMAP.md` § Milestone 6** — read them before touching the March cost display.
 
 **Two results from Milestone 5 that change what you should assume:**
 
@@ -258,7 +265,12 @@ require breaking one, stop and say so rather than working around it.
    - **Final Forecast** — after Dealer resolution. Exact against the complete army. **This alone is the
      combat contract:** if it says a lane leaks two, the wave leaks two.
 
-   A Visible Threat must not be renderable where a Final Forecast is expected.
+   A Visible Threat must not be renderable where a Final Forecast is expected. **Since Milestone 6 that is
+   enforced at the playback boundary, not by the absence of a timeline** — both carry a schedule so the
+   encounter timeline is readable during the draw, but they are different types (`RevealedTimeline` vs
+   `WaveTimeline`) and `TimelinePlayer` accepts only the second. A revealed force is **drawable and
+   unplayable**. Do not widen that constructor. See `docs/reference/tuning-constants.md` § Known
+   Discrepancies 17.
 5. **Total engagement is explanatory, not a balance number.** Never multiply board power by an engagement
    fraction to estimate output — sockets are not interchangeable. **Balance through the resolver.**
 6. **The adjustment window is one move total** — relocate one tower one socket, *or* swap two adjacent
@@ -334,6 +346,9 @@ Read it with `09` — that one governs *what may be shown*, `14` governs *how co
 
 | File | Covers |
 |---|---|
+| `core/Resolve/TimelineStrip.cs` | The timeline's drawing model over raw events. Both forecasts produce one; neither can be played back through it |
+| `core/Resolve/LaneConsequence.cs` | The exact committed-state statistics, in battlefield language. **Nothing on it is summed across lanes** |
+| `core/Resolve/CandidateDelta.cs` | What a candidate placement would change, as causal facts. **No aggregate, and none may be added** |
 | `core/Validation/BatteryFixture.cs` | A scripted case and the script that reaches its offered state |
 | `core/Validation/LaneMirror.cs` | Variant B: the same decision, lanes exchanged |
 | `core/Validation/SessionSnapshot.cs` | Reads an offered state into a loggable record. **Per socket, never summed** |

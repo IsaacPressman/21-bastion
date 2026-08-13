@@ -901,3 +901,36 @@ JSON, and record that a disagreement is a decision to revisit rather than a bug.
 The Saboteur's disable duration is the one to watch — § 9 says *"do not begin with permanent
 destruction"* and § 23.3 asks how severe breakpoints should be, so it is a first-pass number by
 construction.
+
+### 17. Hard Invariant 4's timeline asymmetry moved — ✅ **resolved at Milestone 6, and it is a refinement**
+
+Milestone 1 implemented *"a Visible Threat must not be renderable where a Final Forecast is expected"* by
+giving only the Final Forecast a timeline: with nothing on a Visible Threat to animate, playback could not
+take one by accident.
+
+Milestone 6 needs the encounter timeline **during the draw** — *"if you draw again, this cannon loses two
+shots"* is the whole March decision, and it is unshowable once the Dealer has resolved. So a
+`VisibleThreat` now carries a **`RevealedTimeline`**.
+
+**The invariant is unchanged; its mechanism moved to the playback boundary.** `RevealedTimeline` and
+`WaveTimeline` share no base class, no interface, and no conversion, and `TimelinePlayer`'s constructor
+takes a `WaveTimeline` and nothing else — so a revealed force is **drawable and unplayable**. Both may
+produce a `TimelineStrip`, which is a drawing model over raw events rather than a forecast, and that is
+what lets the timeline stay one surface across the phase change.
+
+Pinned by `tests/Resolve/RevealedTimelineTests.cs`, which asserts the type separation and the
+constructor signature rather than trusting either to be remembered.
+
+### 18. The Milestone 6 shortfall is anchored on the unit, not on a breakpoint — deliberate placeholder
+
+`14-encounter-timeline.md` states the lane's requirement as *"armor-effective damage required before
+socket 6"* — a **spatial breakpoint**, and breakpoints are Milestone 7.
+
+Until one exists, `LaneConsequence` anchors the line on the leaking unit itself: `Required` is its
+health, `Delivered` is what the formation lands on it, and `Shortfall` is the remainder. The sentence
+keeps its shape — *"needs 2.1 more armor-effective damage"* — and only what it is measured against
+changes when breakpoints arrive.
+
+**Swap the anchor at Milestone 7, and do not treat the current values as a baseline for anything.** They
+answer "what would it take to kill this unit at all", which is a strictly easier question than "before it
+crosses the line that matters".

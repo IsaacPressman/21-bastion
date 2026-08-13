@@ -61,7 +61,7 @@ public sealed class SessionSnapshotTests
     [Theory]
     [InlineData("1-severe", SessionSnapshot.RevealedForce)]
     [InlineData("10-onemove", SessionSnapshot.CombatContract)]
-    [InlineData("9-blindfamily", SessionSnapshot.NoReading)]
+    [InlineData("9-blindfamily", SessionSnapshot.RevealedForce)]
     public void The_lane_reading_names_which_forecast_it_holds(string id, string expected)
     {
         // The two forecasts are different claims and the log has to say which one it has, for the
@@ -73,13 +73,31 @@ public sealed class SessionSnapshotTests
     }
 
     [Fact]
-    public void A_state_offering_neither_forecast_records_no_lanes_rather_than_a_guess()
+    public void A_state_awaiting_placement_records_the_revealed_force_it_was_read_against()
     {
-        // Mid-placement, a Visible Threat would be read against a board the player is halfway
-        // through building. Neither contract holds, so nothing is reported.
+        // Milestone 6: the revealed force is legal before the card goes down, because Read and
+        // Diagnose precede Commit (docs/design/01-core-loop.md § The tactical loop). This is the
+        // reading a player forms an intention from, so a log that omitted it could not answer
+        // whether they had one - which is the milestone's whole success criterion.
         StateRecord record = SessionSnapshot.Capture(Open("9-blindfamily"));
 
-        Assert.Empty(record.Lanes);
+        Assert.Equal(SessionSnapshot.RevealedForce, record.LaneReading);
+        Assert.NotEmpty(record.Lanes);
+    }
+
+    [Fact]
+    public void A_reading_and_its_lanes_never_disagree_about_whether_one_was_taken()
+    {
+        // Lanes are reported if and only if a contract was named. A record carrying lanes under
+        // "none", or naming a contract and then reporting nothing, would leave the log claiming a
+        // reading it does not hold - which is the same failure as rendering one forecast in the
+        // other's slot, arriving through the log instead of the screen.
+        foreach (BatteryFixture fixture in Battery.Fixtures)
+        {
+            StateRecord record = SessionSnapshot.Capture(fixture.Open(Tuning));
+
+            Assert.Equal(record.LaneReading == SessionSnapshot.NoReading, record.Lanes.Count == 0);
+        }
     }
 
     [Fact]

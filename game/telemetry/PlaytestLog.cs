@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bastion.Core.Board;
 using Bastion.Core.Diagnostics;
 using Bastion.Core.Validation;
 using Bastion.Core.Wave;
@@ -55,6 +56,14 @@ public partial class PlaytestLog : Node
     private ulong _openedAtMsec;
     private int _placementsInState;
 
+    /// <summary>Family-and-socket combinations inspected while the current state has been open.</summary>
+    private readonly HashSet<string> _combinationsSeen = [];
+
+    /// <summary>Sockets inspected under any family, while the current state has been open.</summary>
+    private readonly HashSet<string> _socketsSeen = [];
+
+    private string? _lastCombination;
+
     /// <summary>How the last combat was consumed. Set by the playback view, read on the next write.</summary>
     private string? _playbackDisposition;
 
@@ -66,10 +75,16 @@ public partial class PlaytestLog : Node
     /// without opening anything. Called from the composition root, after the controller exists and
     /// before the first wave, so the opening state is captured like any other.
     /// </remarks>
-    public static PlaytestLog? Attach(Node parent, WaveController controller, string directory, bool enabled)
+    public static PlaytestLog? Attach(
+        Node parent,
+        WaveController controller,
+        Input.BoardInteraction interaction,
+        string directory,
+        bool enabled)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(controller);
+        ArgumentNullException.ThrowIfNull(interaction);
 
         if (!enabled)
         {
@@ -87,6 +102,7 @@ public partial class PlaytestLog : Node
 
         controller.StateChanged += log.OnStateChanged;
         controller.MoveRejected += log.OnMoveRejected;
+        interaction.CandidateInspected += log.OnCandidateInspected;
 
         return log;
     }
@@ -137,6 +153,42 @@ public partial class PlaytestLog : Node
 
         _openedAtMsec = Time.GetTicksMsec();
         _placementsInState = 0;
+
+        _combinationsSeen.Clear();
+        _socketsSeen.Clear();
+        _lastCombination = null;
+    }
+
+    /// <summary>
+    /// Records that one family-and-socket combination was looked at in the open state.
+    /// </summary>
+    /// <remarks>
+    /// Three separate measurements come out of this, and they answer different questions
+    /// (docs/prototype/VALIDATION.md § Improved-encounter instrumentation). <b>Distinct sockets</b>
+    /// and <b>distinct combinations</b> say how much of the candidate space was swept - approaching
+    /// the whole of it is the oracle signal. <b>Revisits</b> say something else: returning to a
+    /// combination already seen is a player weighing two options against each other, which is the
+    /// 2-3 plausible placements the design is aiming for rather than a failure.
+    /// </remarks>
+    private void OnCandidateInspected(Family family, SocketRef socket)
+    {
+        if (_open is null)
+        {
+            return;
+        }
+
+        string combination = $"{family}@{SessionSnapshot.Describe(socket)}";
+
+        _socketsSeen.Add(SessionSnapshot.Describe(socket));
+
+        // A revisit, not merely a repeat: crossing back onto the combination you just left is
+        // pointer noise, whereas returning to one you left earlier is a comparison.
+        if (!_combinationsSeen.Add(combination) && combination != _lastCombination)
+        {
+            _open.CandidateRevisits++;
+        }
+
+        _lastCombination = combination;
     }
 
     /// <summary>
@@ -160,6 +212,9 @@ public partial class PlaytestLog : Node
         // "Whether placement changed before the choice": consecutive placements inside one offered
         // state mean the player rearranged the board before committing to hit or stand.
         _open.PlacementChangedBeforeChoice = _placementsInState > 1;
+
+        _open.CandidateSocketsHovered = _socketsSeen.Count;
+        _open.CandidateCombinationsHovered = _combinationsSeen.Count;
 
         _lines.Add(JsonSerializer.Serialize(_open, Json));
         _open = null;
@@ -252,6 +307,15 @@ public partial class PlaytestLog : Node
         public bool Abandoned { get; set; }
 
         public bool PlacementChangedBeforeChoice { get; set; }
+
+        /// <summary>Distinct sockets whose candidate consequences were inspected in this state.</summary>
+        public int CandidateSocketsHovered { get; set; }
+
+        /// <summary>Distinct family-and-socket combinations inspected. The brute-force measurement.</summary>
+        public int CandidateCombinationsHovered { get; set; }
+
+        /// <summary>Returns to a combination inspected earlier: a comparison, not a sweep.</summary>
+        public int CandidateRevisits { get; set; }
 
         /// <summary>Moves attempted and refused while this state was offered.</summary>
         public List<WantedMove> MovesWanted { get; } = [];

@@ -145,6 +145,8 @@ public partial class PhaseControls : HBoxContainer
             sockets.AddChild(button);
         }
 
+        BuildStandingOrders();
+
         _primary.AddChild(CardReadout(pending));
     }
 
@@ -154,6 +156,8 @@ public partial class PhaseControls : HBoxContainer
         _contextual.AddChild(Paragraph(
             $"Hitting advances the entry by {_controller.Session.NextStepCost():0.0} before the card is revealed. "
             + "The board shades the firing windows that step would eat."));
+
+        BuildStandingOrders();
 
         var hit = new Button { Text = "Hit", ThemeTypeVariation = BastionTheme.PrimaryButton };
         hit.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -212,7 +216,42 @@ public partial class PhaseControls : HBoxContainer
             _contextual.AddChild(Caption("MOVE SPENT — standing orders are still free"));
         }
 
-        HFlowContainer orders = Group("STANDING ORDERS  (free, now → next)");
+        BuildStandingOrders();
+
+        var lockButton = new Button { Text = "Lock and resolve", ThemeTypeVariation = BastionTheme.PrimaryButton };
+        lockButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        lockButton.Pressed += () => _controller.Lock();
+        _primary.AddChild(lockButton);
+    }
+
+    /// <summary>
+    /// The standing-order cycle, offered in every phase before combat.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Orders are editable throughout and lock only when combat begins</b>
+    /// (docs/design/05-battlefield.md § They are encounter skill, not a secondary menu). They used
+    /// to appear in the adjustment window alone; being able to tell a Siege Club to hold for the
+    /// armored target <i>at the moment it is placed</i>, rather than several decisions later, is the
+    /// whole point of the widening.
+    /// </para>
+    /// <para>
+    /// Setting one re-reads the Visible Threat and redraws the timeline, because an order that
+    /// changes what a tower does changes the reading it is being judged against. An order whose
+    /// consequence the player cannot see is a menu, which is what this is not.
+    /// </para>
+    /// </remarks>
+    private void BuildStandingOrders()
+    {
+        BoardState board = _controller.Board;
+        TuningData tuning = _controller.Tuning;
+
+        if (board.Towers.Count == 0)
+        {
+            return;
+        }
+
+        HFlowContainer orders = Group("STANDING ORDERS  (free, now → next; locks at combat)");
 
         foreach (TowerState tower in board.Towers)
         {
@@ -233,11 +272,6 @@ public partial class PhaseControls : HBoxContainer
             button.Pressed += () => _controller.SetOrder(socket, next);
             orders.AddChild(button);
         }
-
-        var lockButton = new Button { Text = "Lock and resolve", ThemeTypeVariation = BastionTheme.PrimaryButton };
-        lockButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        lockButton.Pressed += () => _controller.Lock();
-        _primary.AddChild(lockButton);
     }
 
     // ---------------------------------------------------------------- widgets

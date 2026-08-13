@@ -51,6 +51,24 @@ public sealed class BoardInteraction
     /// </remarks>
     internal event Action? PointerMoved;
 
+    /// <summary>
+    /// The player has looked at what one family-and-socket combination would do.
+    /// </summary>
+    /// <remarks>
+    /// <b>The hover-brute-force measurement</b> (docs/prototype/VALIDATION.md § Improved-encounter
+    /// instrumentation). The candidate preview is the design's most dangerous surface: full
+    /// information plus exhaustive preview turns placement into search, and the guardrail against
+    /// it is that the failure is <i>detected</i> rather than assumed absent
+    /// (docs/design/14-encounter-timeline.md § The solvable-puzzle risk).
+    /// <para>
+    /// So this fires whenever a combination is inspected - a new socket under the pointer, or the
+    /// same socket with the family switched - and <c>game/telemetry/PlaytestLog.cs</c> counts them.
+    /// If players routinely inspect nearly every combination before committing, the preview is
+    /// working as an oracle and the response is to reduce sortable outputs, not to hide information.
+    /// </para>
+    /// </remarks>
+    internal event Action<Family, SocketRef>? CandidateInspected;
+
     /// <summary>The family the next placement will lock in. Chosen before the socket.</summary>
     internal Family SelectedFamily { get; private set; } = Family.Club;
 
@@ -75,6 +93,7 @@ public sealed class BoardInteraction
 
         SelectedFamily = family;
         Changed?.Invoke();
+        ReportInspection();
     }
 
     internal void Hover(SocketRef? socket)
@@ -86,6 +105,23 @@ public sealed class BoardInteraction
 
         Hovered = socket;
         PointerMoved?.Invoke();
+        ReportInspection();
+    }
+
+    /// <summary>
+    /// Announces the combination now under consideration, when there is a card to place.
+    /// </summary>
+    /// <remarks>
+    /// Only during placement: the pointer crossing the board in the adjustment window is not a
+    /// candidate being weighed, and counting it would inflate the very measurement that is supposed
+    /// to detect searching.
+    /// </remarks>
+    private void ReportInspection()
+    {
+        if (Hovered is { } socket && _controller.Session.Phase == WavePhase.AwaitingPlacement)
+        {
+            CandidateInspected?.Invoke(SelectedFamily, socket);
+        }
     }
 
     /// <summary>

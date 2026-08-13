@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Bastion.Core.Board;
 using Bastion.Core.Cards;
 using Bastion.Core.Config;
 using Bastion.Core.Resolve;
@@ -51,7 +52,15 @@ public partial class BattlefieldPanel : PanelContainer
         _header.AddThemeFontSizeOverride("font_size", 13);
         column.AddChild(_header);
 
-        _body = new Label { ThemeTypeVariation = BastionTheme.Mono };
+        // Autowrapped even though it is a mono column, for the same reason the army block is: without
+        // it the longest consequence line sets the label's minimum width, which widens the whole info
+        // column past the region it is anchored to and clips every panel in it against the screen
+        // edge. The lines below are written to fit; this is the guard for when one is not.
+        _body = new Label
+        {
+            ThemeTypeVariation = BastionTheme.Mono,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
         column.AddChild(_body);
 
         column.AddChild(new HSeparator());
@@ -76,10 +85,21 @@ public partial class BattlefieldPanel : PanelContainer
 
         switch (session.Phase)
         {
+            case WavePhase.AwaitingPlacement:
+                // The revealed force is legal here too, and it is the reading the player forms an
+                // intention from: Read and Diagnose precede Commit (docs/design/01-core-loop.md).
+                // The board it describes is real but incomplete, so the header says how incomplete.
+                _header.Text = session.PendingRanks.Count == 1
+                    ? "Visible Threat — the revealed force only, with one card still to place."
+                    : $"Visible Threat — the revealed force only, with {session.PendingRanks.Count} cards still to place.";
+                _header.AddThemeColorOverride("font_color", Palette.VisibleThreat);
+                _body.Text = ConsequenceLines();
+                break;
+
             case WavePhase.DrawDecision:
                 _header.Text = "Visible Threat — the revealed force only. NOT a prediction of the wave.";
                 _header.AddThemeColorOverride("font_color", Palette.VisibleThreat);
-                _body.Text = ForecastLines(_controller.VisibleThreat.Lanes);
+                _body.Text = ConsequenceLines();
                 break;
 
             case WavePhase.AdjustmentWindow:
@@ -87,11 +107,11 @@ public partial class BattlefieldPanel : PanelContainer
             case WavePhase.BustLocked:
                 _header.Text = "Final Forecast — the combat contract.";
                 _header.AddThemeColorOverride("font_color", Palette.FinalForecast);
-                _body.Text = ForecastLines(_controller.Forecast.Lanes);
+                _body.Text = ConsequenceLines();
                 break;
 
             default:
-                _header.Text = "What each lane takes undefended. Threat appears at the draw decision.";
+                _header.Text = "What each lane takes undefended.";
                 _header.AddThemeColorOverride("font_color", Palette.TextDim);
                 _body.Text = PreDrawLines(session);
                 break;
@@ -105,21 +125,77 @@ public partial class BattlefieldPanel : PanelContainer
         _baseWave.Text = resolved ? ArmyLines(session) : BaseWaveLines(session);
     }
 
-    private string ForecastLines(IReadOnlyList<LaneOutcome> lanes)
+    /// <summary>
+    /// Per lane: the numbers, then the battlefield problem that remains.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The exact committed-state statistics (docs/design/14-encounter-timeline.md § Exact
+    /// consequences for the committed state): which enemy leaks, when the lane first breaks, what it
+    /// would take to stop it, what the formation currently delivers, and what each tower does.
+    /// </para>
+    /// <para>
+    /// <b>A requirement and a shortfall, never the card that closes them.</b> "Needs 2.1 more
+    /// armor-effective damage" leaves every step of the player's judgment intact; "a mid-rank Siege
+    /// Club here will solve this" deletes the last one.
+    /// </para>
+    /// </remarks>
+    private string ConsequenceLines()
     {
-        double threshold = _controller.Threshold;
         var sb = new StringBuilder();
 
-        foreach (LaneOutcome lane in lanes)
+        foreach (LaneConsequence lane in _controller.Consequences)
         {
             // Raw number primary; the Open/Held glance-read second. This is the only interpretation
             // the game is permitted to do for the player.
-            sb.AppendLine($"Lane {lane.LaneIndex}  {lane.Stake,-8} {lane.CoverageLabel(threshold)}");
+            sb.AppendLine($"Lane {lane.LaneIndex}  {lane.Stake,-8} {lane.CoverageLabel}");
             sb.AppendLine($"   takes {lane.PredictedDamage,3} of {lane.EmptyLaneDamage,-3}  prevented {lane.DamagePrevented}");
+
+            AppendShortfall(sb, lane);
+            AppendTowerAttacks(sb, lane);
+            sb.AppendLine();
         }
 
         return sb.ToString().TrimEnd();
     }
+
+    private static void AppendShortfall(StringBuilder sb, LaneConsequence lane)
+    {
+        if (lane.LeadLeaker is not { } lead)
+        {
+            sb.AppendLine("   nothing gets through");
+            return;
+        }
+
+        // Named and counted: "1 Armored Soldier leaks for 2 damage" is a battlefield problem, where
+        // "predicted damage 2" is a number. The lead leaker is the one the shortfall is about - a
+        // later one may be answered by the same tower, and stating every shortfall at once turns a
+        // diagnosis into a list.
+        //
+        // Kept under about forty characters a line. The column is a fixed width and this is the
+        // block most likely to outgrow it, which clips every panel below rather than just this one.
+        int sameType = lane.Leakers.Count(l => l.EnemyId == lead.EnemyId);
+
+        sb.AppendLine($"   {sameType}× {lead.DisplayName} gets through");
+        sb.AppendLine($"   first at {lead.LeakTime:0.0}s");
+        sb.AppendLine($"   armor-effective {lead.Delivered:0.0} of {lead.Required:0.0}");
+        sb.AppendLine($"   short by {lead.Shortfall:0.0}");
+    }
+
+    private static void AppendTowerAttacks(StringBuilder sb, LaneConsequence lane)
+    {
+        TowerAttacks[] firing = [.. lane.Towers.Where(t => t.Shots > 0)];
+
+        if (firing.Length == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("   " + string.Join("  ", firing.Select(t => $"{Describe(t.Socket)} {t.Shots}×")));
+    }
+
+    private static string Describe(SocketRef socket) =>
+        socket.IsJunction ? "junc" : $"S{socket.SocketIndex}";
 
     /// <summary>
     /// Stakes and the cost of ignoring them, before the opening deal.
@@ -215,21 +291,89 @@ public partial class BattlefieldPanel : PanelContainer
         _ => ((int)card.Rank).ToString(CultureInfo.InvariantCulture),
     };
 
+    /// <summary>
+    /// The base wave, fully known before the opening hand: type, count, order, and timing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// docs/design/09-information-and-ui.md § Shown asks for "the complete authored base wave before
+    /// the opening hand: enemy types, spawn order, spawn timing, lane assignment". Counts alone are
+    /// not that - a player who knows six raiders are coming but not when they arrive still cannot
+    /// form an intention, which is the failure the whole encounter pass exists to fix.
+    /// </para>
+    /// <para>
+    /// The times come from the same schedule the timeline draws, so the block and the strip cannot
+    /// disagree about when a lane meets something. The timeline shows the shape; this states the
+    /// numbers behind it.
+    /// </para>
+    /// </remarks>
     private string BaseWaveLines(WaveSession session)
     {
         TuningData tuning = _controller.Tuning;
         var sb = new StringBuilder();
 
-        for (int lane = 0; lane < session.Encounter.BaseWave.Count; lane++)
+        foreach (LaneStrip lane in _controller.Strip.Lanes)
         {
-            IReadOnlyList<SpawnGroupTuning> groups = session.Encounter.BaseWave[lane];
-            string units = groups.Count == 0
-                ? "—"
-                : string.Join(", ", groups.Select(g => $"{g.Count}× {tuning.Enemy(g.EnemyId).DisplayName}"));
+            sb.AppendLine($"Lane {lane.LaneIndex}");
 
-            sb.AppendLine($"Lane {lane}  {units}");
+            UnitTrack[] units = [.. lane.Units.OrderBy(u => u.SpawnTime).ThenBy(u => u.SpawnIndex)];
+
+            if (units.Length == 0)
+            {
+                sb.AppendLine("   —");
+                continue;
+            }
+
+            // Grouped in arrival order rather than sorted by type, so the list reads in the order
+            // the lane will meet them - which is the order the player has to answer them in.
+            foreach (ArrivalRun run in ArrivalRuns(units))
+            {
+                string window = run.Count == 1
+                    ? $"at {run.From:0.0}s"
+                    : $"{run.From:0.0}–{run.To:0.0}s";
+
+                sb.AppendLine(
+                    $"   {run.Count,2}× {tuning.Enemy(run.EnemyId).DisplayName}  {SourceLabel(run.Source)}  {window}");
+            }
         }
 
-        return sb.ToString().TrimEnd();
+        // The located unknown, named before the deal. Its rank stays hidden; its lane does not
+        // (docs/design/06-dealer-and-enemies.md § The hidden card's lane is visible from the start).
+        sb.AppendLine();
+        sb.Append($"Hidden card → lane {session.HiddenCardLane}, rank unknown");
+
+        return sb.ToString();
+    }
+
+    /// <summary>A consecutive stretch of one enemy type from one origin, and when it arrives.</summary>
+    private readonly record struct ArrivalRun(
+        string EnemyId, SpawnSource Source, int Count, double From, double To);
+
+    /// <summary>
+    /// Consecutive runs of the same type and origin, in arrival order.
+    /// </summary>
+    /// <remarks>
+    /// A run rather than a total, so a type that arrives, pauses, and arrives again reads as two
+    /// waves instead of one lump - and a drawn reinforcement never hides inside the base wave's
+    /// tally. Same rule the army block already uses; here it carries the timing as well.
+    /// </remarks>
+    private static List<ArrivalRun> ArrivalRuns(IReadOnlyList<UnitTrack> units)
+    {
+        List<ArrivalRun> runs = [];
+
+        foreach (UnitTrack unit in units)
+        {
+            if (runs.Count > 0
+                && runs[^1].EnemyId == unit.EnemyId
+                && runs[^1].Source == unit.Source)
+            {
+                runs[^1] = runs[^1] with { Count = runs[^1].Count + 1, To = unit.SpawnTime };
+                continue;
+            }
+
+            runs.Add(new ArrivalRun(unit.EnemyId, unit.Source, 1, unit.SpawnTime, unit.SpawnTime));
+        }
+
+        return runs;
     }
 }

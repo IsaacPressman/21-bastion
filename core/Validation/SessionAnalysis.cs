@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bastion.Core.Wave;
 
 namespace Bastion.Core.Validation;
 
@@ -148,6 +149,14 @@ public static class SessionAnalysis
 
         SettledWave[] settled = [.. SettledWaves(entries)];
 
+        // Placement states only. A placement is the decision the candidate preview serves, and
+        // pooling it with hit/stand and lock states would bury exactly the number being watched
+        // (docs/prototype/VALIDATION.md § Improved-encounter instrumentation).
+        Entry[] placementStates =
+        [
+            .. entries.Where(e => e.State!.Phase == nameof(WavePhase.AwaitingPlacement)),
+        ];
+
         return new SessionMetrics
         {
             Session = sessionName,
@@ -162,8 +171,46 @@ public static class SessionAnalysis
             OccupiedSocketDepths = [.. settled.SelectMany(w => w.OccupiedDepths)],
             CardCountsAtLock = [.. settled.Select(w => w.CardCount)],
             MedianDecisionMilliseconds = Median([.. entries.Select(e => (double)e.DecisionMilliseconds)]),
+            PlacementMilliseconds = [.. placementStates.Select(e => (double)e.DecisionMilliseconds)],
+            CandidateCombinationsHovered = [.. placementStates.Select(e => (double)e.CandidateCombinationsHovered)],
+            CandidateRevisits = [.. placementStates.Select(e => (double)e.CandidateRevisits)],
+            ExhaustiveSearchStates = placementStates.Count(LooksExhaustive),
         };
     }
+
+    /// <summary>
+    /// Whether a state had nearly the whole candidate space inspected before a card was committed.
+    /// </summary>
+    /// <remarks>
+    /// <b>The hover-brute-force signal, made measurable rather than assumed absent</b>
+    /// (docs/design/14-encounter-timeline.md § The solvable-puzzle risk). The candidate space is
+    /// every socket times the two families; sweeping most of it is a player searching rather than
+    /// judging. The pre-committed response if this is common is to <b>reduce sortable outputs</b> -
+    /// not to hide information, and not to add a mechanic.
+    /// </remarks>
+    private static bool LooksExhaustive(Entry entry)
+    {
+        int sockets = entry.State!.Sockets.Count;
+
+        if (sockets == 0)
+        {
+            return false;
+        }
+
+        // Two families per socket: Club and Spade are the whole prototype roster
+        // (docs/prototype/SCOPE.md cuts Hearts and Diamonds).
+        return entry.CandidateCombinationsHovered >= ExhaustiveSearchFraction * sockets * 2;
+    }
+
+    /// <summary>
+    /// How much of the candidate space counts as having swept it.
+    /// </summary>
+    /// <remarks>
+    /// A first pass with no measurement behind it, like every other number in the design. It is set
+    /// below one because a player who inspects most combinations is already searching - waiting for
+    /// literally all of them would only catch the most thorough version of the failure.
+    /// </remarks>
+    private const double ExhaustiveSearchFraction = 0.75;
 
     /// <summary>The middle value, or null when there is nothing to take a middle of.</summary>
     private static double? Median(double[] values)
@@ -246,6 +293,13 @@ public static class SessionAnalysis
 
         [JsonPropertyName("Abandoned")]
         public bool Abandoned { get; init; }
+
+        /// <summary>Zero on a log written before Milestone 6, which is indistinguishable from "did not look".</summary>
+        public int CandidateSocketsHovered { get; init; }
+
+        public int CandidateCombinationsHovered { get; init; }
+
+        public int CandidateRevisits { get; init; }
     }
 }
 
@@ -285,6 +339,33 @@ public sealed record SessionMetrics
 
     /// <summary>Median time a state stayed on screen. Null when the session recorded none.</summary>
     public required double? MedianDecisionMilliseconds { get; init; }
+
+    /// <summary>
+    /// Time on screen for each placement state, kept raw so quantiles pool honestly.
+    /// </summary>
+    /// <remarks>
+    /// The failure signal is <i>placement times explode</i>, and its response is
+    /// <b>do not add decisions</b> - simplify presentation, reduce candidate forms, or make the
+    /// timeline more legible (docs/prototype/VALIDATION.md § Failure signals). A median of medians
+    /// would smear the tail that signal lives in, so the values travel and
+    /// <see cref="ArmMetrics.Pool"/> takes the quantiles.
+    /// </remarks>
+    public required IReadOnlyList<double> PlacementMilliseconds { get; init; }
+
+    /// <summary>Distinct family-and-socket combinations inspected, per placement state.</summary>
+    public required IReadOnlyList<double> CandidateCombinationsHovered { get; init; }
+
+    /// <summary>Returns to an already-inspected combination, per placement state.</summary>
+    /// <remarks>
+    /// Read <i>with</i> the sweep count, not instead of it. Revisiting two or three candidates is
+    /// the target behaviour - "forward-left kills the Standard Bearer early; middle-right completes
+    /// my run" - while sweeping the whole space is the oracle failure. High revisits with a low
+    /// sweep is the encounter working.
+    /// </remarks>
+    public required IReadOnlyList<double> CandidateRevisits { get; init; }
+
+    /// <summary>Placement states where nearly the whole candidate space was inspected.</summary>
+    public required int ExhaustiveSearchStates { get; init; }
 
     /// <summary>
     /// Whether this session was driven by a machine and must not enter the baseline.
@@ -327,6 +408,32 @@ public sealed record ArmMetrics
     /// <summary>Machine-driven sessions excluded from this pool.</summary>
     public required int SyntheticSessionsExcluded { get; init; }
 
+    /// <summary>Median and 90th-percentile time to place a card. The tail is the signal.</summary>
+    /// <remarks>
+    /// <i>Placement times explode</i> is a failure signal whose response is <b>do not add
+    /// decisions</b>. It shows up in the 90th percentile long before it shows up in the median,
+    /// which is why both travel.
+    /// </remarks>
+    public required double? MedianPlacementMilliseconds { get; init; }
+
+    public required double? NinetiethPlacementMilliseconds { get; init; }
+
+    /// <summary>Mean distinct family-and-socket combinations inspected per placement.</summary>
+    public required double? MeanCandidatesInspected { get; init; }
+
+    /// <summary>Mean returns to an already-inspected candidate. Comparison, not sweeping.</summary>
+    public required double? MeanCandidateRevisits { get; init; }
+
+    /// <summary>
+    /// Placements where nearly the whole candidate space was swept.
+    /// </summary>
+    /// <remarks>
+    /// The oracle measurement. If this is common the candidate preview is functioning as an oracle,
+    /// and the pre-committed response is to reduce sortable outputs - never to hide information, and
+    /// never to add a mechanic (docs/prototype/VALIDATION.md § Failure signals).
+    /// </remarks>
+    public required double? ExhaustiveSearchFraction { get; init; }
+
     /// <summary>
     /// Pools one arm's sessions over counts, never by averaging fractions.
     /// </summary>
@@ -348,8 +455,19 @@ public sealed record ArmMetrics
         double[] depths = [.. real.SelectMany(s => s.OccupiedSocketDepths)];
         int[] cards = [.. real.SelectMany(s => s.CardCountsAtLock)];
 
+        // Pooled over the raw per-placement values, not over per-session summaries, for the same
+        // reason the fractions are: a mean of medians is not the median, and sessions are short.
+        double[] placementTimes = [.. real.SelectMany(s => s.PlacementMilliseconds)];
+        double[] inspected = [.. real.SelectMany(s => s.CandidateCombinationsHovered)];
+        double[] revisits = [.. real.SelectMany(s => s.CandidateRevisits)];
+
         return new ArmMetrics
         {
+            MedianPlacementMilliseconds = Quantile(placementTimes, 0.5),
+            NinetiethPlacementMilliseconds = Quantile(placementTimes, 0.9),
+            MeanCandidatesInspected = inspected.Length > 0 ? inspected.Average() : null,
+            MeanCandidateRevisits = revisits.Length > 0 ? revisits.Average() : null,
+            ExhaustiveSearchFraction = Ratio(real.Sum(s => s.ExhaustiveSearchStates), inspected.Length),
             Arm = arm,
             Sessions = real.Length,
             SyntheticSessionsExcluded = sessions.Count - real.Length,
@@ -374,4 +492,25 @@ public sealed record ArmMetrics
     /// </remarks>
     private static double? Ratio(int numerator, int denominator) =>
         denominator > 0 ? (double)numerator / denominator : null;
+
+    /// <summary>
+    /// A quantile by nearest rank, or null when nothing was observed.
+    /// </summary>
+    /// <remarks>
+    /// Nearest rank rather than interpolated: these are counts of milliseconds from a handful of
+    /// placements, and an interpolated 90th percentile over eleven values invents a precision the
+    /// sample does not have.
+    /// </remarks>
+    private static double? Quantile(double[] values, double fraction)
+    {
+        if (values.Length == 0)
+        {
+            return null;
+        }
+
+        double[] sorted = [.. values.Order()];
+        int index = Math.Clamp((int)Math.Ceiling(fraction * sorted.Length) - 1, 0, sorted.Length - 1);
+
+        return sorted[index];
+    }
 }

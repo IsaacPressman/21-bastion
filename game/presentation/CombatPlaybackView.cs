@@ -35,6 +35,7 @@ public partial class CombatPlaybackView : HBoxContainer
     private WaveController _controller = null!;
     private BattlefieldView _battlefield = null!;
     private PostWaveView _postWave = null!;
+    private TimelineView _timeline = null!;
 
     private TimelinePlayer? _player;
     private double _cursor;
@@ -63,11 +64,13 @@ public partial class CombatPlaybackView : HBoxContainer
     [Signal]
     public delegate void PlaybackFinishedEventHandler(string disposition);
 
-    public void Bind(WaveController controller, BattlefieldView battlefield, PostWaveView postWave)
+    public void Bind(
+        WaveController controller, BattlefieldView battlefield, PostWaveView postWave, TimelineView timeline)
     {
         _controller = controller;
         _battlefield = battlefield;
         _postWave = postWave;
+        _timeline = timeline;
         _controller.StateChanged += OnStateChanged;
     }
 
@@ -149,6 +152,10 @@ public partial class CombatPlaybackView : HBoxContainer
         _battlefield.SetFrame(_player.FrameAt(_cursor));
         _battlefield.PushEvents(_player.EventsBetween(_previousCursor, _cursor));
 
+        // The same cursor on the timeline, so the wave can be watched against the schedule that
+        // promised it rather than only in the abstract.
+        _timeline.SetCursor(_cursor);
+
         UpdateStatus();
 
         if (reachedEnd)
@@ -189,6 +196,7 @@ public partial class CombatPlaybackView : HBoxContainer
         Visible = true;
 
         _battlefield.SetFrame(_player.FrameAt(0.0));
+        _timeline.SetCursor(0.0);
         UpdateStatus();
     }
 
@@ -200,6 +208,7 @@ public partial class CombatPlaybackView : HBoxContainer
         Visible = false;
         _nextWaveButton.Visible = false;
         _battlefield.SetFrame(null);
+        _timeline.SetCursor(null);
     }
 
     private void TogglePlay()
@@ -236,6 +245,7 @@ public partial class CombatPlaybackView : HBoxContainer
         // No event flush on a skip: a wave's worth of flashes in one frame would be noise, and the
         // review panel is the account of what happened.
         _battlefield.SetFrame(_player.FrameAt(_cursor));
+        _timeline.SetCursor(_cursor);
         UpdateStatus();
         Finish();
     }

@@ -65,6 +65,9 @@ public static class SessionSnapshot
                 EmptyLaneDamage = lane.EmptyLaneDamage,
                 PredictedDamage = lane.PredictedDamage,
                 IsOpen = lane.IsOpen(tuning.Rules.OpenHeldThresholdFraction),
+                FirstLeakTime = lane.LeakedUnits.Count == 0
+                    ? null
+                    : lane.LeakedUnits.Min(u => u.LeakTime),
             })],
             LaneReading = reading,
             Dealer = CaptureDealer(session, tuning),
@@ -84,12 +87,16 @@ public static class SessionSnapshot
     private static (string Reading, IReadOnlyList<LaneOutcome> Lanes) ReadLanes(WaveSession session) =>
         session.Phase switch
         {
-            WavePhase.DrawDecision => (RevealedForce, session.VisibleThreatNow().Lanes),
+            // AwaitingPlacement reads too. The revealed force is legal before the card goes down -
+            // Read and Diagnose precede Commit - and it is the reading a player forms an intention
+            // from, so a log that omitted it could not answer whether they had one
+            // (docs/design/01-core-loop.md § The tactical loop).
+            WavePhase.AwaitingPlacement or WavePhase.DrawDecision =>
+                (RevealedForce, session.VisibleThreatNow().Lanes),
+
             WavePhase.AdjustmentWindow or WavePhase.Locked or WavePhase.BustLocked =>
                 (CombatContract, session.Forecast().Lanes),
 
-            // AwaitingPlacement: a card is in hand and unplaced, so the Visible Threat would be read
-            // against a board the player is midway through building. Neither contract holds there.
             _ => (NoReading, []),
         };
 
@@ -171,6 +178,7 @@ public static class SessionSnapshot
         Upcard = session.Vanguard.Rank.TuningKey(),
         UpcardUnit = UnitFor(tuning, session.Vanguard),
         VanguardLane = session.Encounter.VanguardLane,
+        HiddenCardLane = session.HiddenCardLane,
         Cards = session.DealerCards is null ? null : [.. session.DealerCards.Select(c => c.Rank.TuningKey())],
         DeployedUnits = session.DealerCards is null ? null : [.. session.DealerCards.Select(c => UnitFor(tuning, c))],
     };
@@ -203,7 +211,14 @@ public static class SessionSnapshot
         yield return SocketRef.Junction;
     }
 
-    /// <summary>The notation the fixtures and the placement sweeps already use.</summary>
-    internal static string Describe(SocketRef socket) =>
+    /// <summary>
+    /// The notation the fixtures and the placement sweeps already use.
+    /// </summary>
+    /// <remarks>
+    /// Public so the interface-side log names sockets the same way the core does. The hover counts
+    /// are compared against socket occupancy and depth from the same line, and two notations for one
+    /// socket would make that join a manual step in every analysis pass.
+    /// </remarks>
+    public static string Describe(SocketRef socket) =>
         socket.IsJunction ? "J" : $"L{socket.LaneIndex}S{socket.SocketIndex}";
 }

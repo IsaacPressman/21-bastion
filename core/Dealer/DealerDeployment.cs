@@ -69,7 +69,7 @@ public static class DealerDeployment
                 // pack - many, fragile" against a singular "Siege engine" describes.
                 Count = tuning.Waves.DealerCardDeploysFullPack ? tuning.Enemy(enemyId).Count : 1,
 
-                LaneIndex = LaneFor(tuning, encounter, cardIndex: i),
+                LaneIndex = LaneRule(tuning, encounter, cardIndex: i),
                 IsVanguard = i == 0,
             });
         }
@@ -104,7 +104,32 @@ public static class DealerDeployment
         throw new TuningValidationException($"dealerCardUnits has no entry for rank '{key}'.");
     }
 
-    private static int LaneFor(TuningData tuning, EncounterTuning encounter, int cardIndex) =>
+    /// <summary>
+    /// The lane the Dealer's card at <paramref name="cardIndex"/> enters. The upcard is index 0, the
+    /// hidden card index 1.
+    /// </summary>
+    /// <remarks>
+    /// <b>Public because the hidden card's destination lane is baseline information.</b> Its rank
+    /// stays unknown; its lane does not (docs/design/06-dealer-and-enemies.md § The hidden card's
+    /// lane is visible from the start). The player knows "something unknown is coming to lane two",
+    /// which is uncertainty that does not prevent intention - and is what gives the junction its job
+    /// as a hedge. Exposed here rather than recomputed by a caller so there is one lane rule, not
+    /// two that can drift.
+    /// </remarks>
+    public static int LaneForCard(TuningData tuning, EncounterTuning encounter, int cardIndex)
+    {
+        ArgumentNullException.ThrowIfNull(tuning);
+        ArgumentNullException.ThrowIfNull(encounter);
+
+        if (cardIndex < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cardIndex), cardIndex, "Dealer cards are indexed from zero.");
+        }
+
+        return LaneRule(tuning, encounter, cardIndex);
+    }
+
+    private static int LaneRule(TuningData tuning, EncounterTuning encounter, int cardIndex) =>
         tuning.Waves.DealerLaneAssignment switch
         {
             "alternate_from_vanguard" => (encounter.VanguardLane + cardIndex) % tuning.Geometry.Lanes,

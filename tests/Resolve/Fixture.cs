@@ -90,10 +90,11 @@ internal static class Fixture
     /// Resolves an isolated lane-0 encounter and hands back that lane's events.
     /// </summary>
     /// <remarks>
-    /// Goes through <see cref="Resolver.ResolveComplete"/> because only a Final Forecast carries a
-    /// timeline - a Visible Threat describes a force, not a wave that will run, so there is nothing
-    /// on it to inspect. A one-card Dealer hand keeps the army complete while its units land in the
-    /// other lane.
+    /// Goes through <see cref="Resolver.ResolveComplete"/> because these tests are about the wave
+    /// that will run. A Visible Threat carries a <see cref="RevealedTimeline"/> as of Milestone 6,
+    /// but it is a schedule for the revealed force rather than a recording of combat - and it is a
+    /// separate type precisely so the two cannot be swapped. A one-card Dealer hand keeps the army
+    /// complete while its units land in the other lane.
     /// </remarks>
     internal static IReadOnlyList<TimelineEvent> EventsInLaneZero(
         EncounterTuning encounter, BoardState board) =>

@@ -44,9 +44,19 @@ public static class Resolver
 
         WaveResolution resolution = Run(tuning, encounter, board, army.Spawns);
 
-        // No timeline. A Visible Threat describes a force, not a wave that will run, so there is
-        // nothing here for combat playback to animate.
-        return new VisibleThreat { Lanes = resolution.Lanes };
+        // The schedule, not a wave that will run. The events were always computed here and used to
+        // be discarded; the encounter timeline needs them during the draw, so they are kept. They
+        // are wrapped in a RevealedTimeline rather than a WaveTimeline, which is what keeps combat
+        // playback unable to animate a Visible Threat - see RevealedTimeline for the full argument.
+        return new VisibleThreat
+        {
+            Lanes = resolution.Lanes,
+            Schedule = new RevealedTimeline
+            {
+                Events = resolution.Events,
+                DurationSeconds = resolution.DurationSeconds,
+            },
+        };
     }
 
     /// <summary>
@@ -387,6 +397,7 @@ public static class Resolver
                         LeakDamage = escapee.Type.LeakDamage,
                         Cause = cause,
                         RemainingHealthFraction = escapee.HealthFraction,
+                        LeakTime = time,
                     });
 
                     events.Add(new LeakEvent

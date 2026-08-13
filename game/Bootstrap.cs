@@ -114,6 +114,16 @@ public partial class Bootstrap : Node2D
         };
         AddChild(battlefield);
 
+        // The encounter timeline sits under the board and shares its world space: the board owns
+        // path, this owns time, and Layout keeps the two regions stacked rather than overlapping.
+        var timeline = new TimelineView
+        {
+            Name = "Timeline",
+            LabelFont = BastionTheme.UiFont,
+            MonoFont = BastionTheme.MonoFont,
+        };
+        AddChild(timeline);
+
         // Panels live on a CanvasLayer so they float above the board regardless of any camera.
         var ui = new CanvasLayer { Name = "UI" };
         AddChild(ui);
@@ -126,22 +136,26 @@ public partial class Bootstrap : Node2D
         ui.AddChild(root);
 
         PhaseHeader header = BuildHeader(root);
-        (BattlefieldPanel battlefieldPanel, HandPanel handPanel, PostWaveView postWave) = BuildInfoColumn(root);
+        (BattlefieldPanel battlefieldPanel, CounterfactualPanel counterfactual, HandPanel handPanel, PostWaveView postWave) =
+            BuildInfoColumn(root);
         (PhaseControls phaseControls, CombatPlaybackView playback) = BuildActionBar(root);
 
         // Bind after the widgets exist (their _Ready has run on AddChild) and before the first wave, so
         // the opening StateChanged reaches every connected view.
         battlefield.Bind(controller, interaction);
+        timeline.Bind(controller);
         header.Bind(controller);
         battlefieldPanel.Bind(controller);
+        counterfactual.Bind(controller);
         handPanel.Bind(controller);
         postWave.Bind(controller);
         phaseControls.Bind(controller, interaction);
-        playback.Bind(controller, battlefield, postWave);
+        playback.Bind(controller, battlefield, postWave, timeline);
 
         // Attached before the first wave so the opening state is logged like any other, and after
         // the playback view exists so it can hear how combat was consumed.
-        if (Telemetry.PlaytestLog.Attach(this, controller, options.LogDirectory, options.Logging) is { } log)
+        if (Telemetry.PlaytestLog.Attach(
+                this, controller, interaction, options.LogDirectory, options.Logging) is { } log)
         {
             playback.PlaybackFinished += log.RecordPlayback;
             GD.Print($"[21 Bastion] Session log: {options.LogDirectory}");
@@ -223,7 +237,7 @@ public partial class Bootstrap : Node2D
         return header;
     }
 
-    private static (BattlefieldPanel, HandPanel, PostWaveView) BuildInfoColumn(Control root)
+    private static (BattlefieldPanel, CounterfactualPanel, HandPanel, PostWaveView) BuildInfoColumn(Control root)
     {
         var scroll = new ScrollContainer { Name = "InfoColumn" };
         scroll.SetAnchorsPreset(Control.LayoutPreset.RightWide);
@@ -246,14 +260,18 @@ public partial class Bootstrap : Node2D
         margins.AddChild(column);
 
         var battlefieldPanel = new BattlefieldPanel { Name = "BattlefieldPanel" };
+        var counterfactual = new CounterfactualPanel { Name = "Counterfactual" };
         var handPanel = new HandPanel { Name = "HandPanel" };
         var postWave = new PostWaveView { Name = "PostWave" };
 
+        // The memory of the last card sits between the two consequence surfaces, next to the
+        // battlefield facts it is a delta of - and above the hand, which it says nothing about.
         column.AddChild(battlefieldPanel);
+        column.AddChild(counterfactual);
         column.AddChild(handPanel);
         column.AddChild(postWave);
 
-        return (battlefieldPanel, handPanel, postWave);
+        return (battlefieldPanel, counterfactual, handPanel, postWave);
     }
 
     /// <summary>

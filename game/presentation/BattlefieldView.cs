@@ -462,6 +462,125 @@ public partial class BattlefieldView : Node2D
         {
             Outline(hovered, Palette.SocketHover, 2f);
             DrawCoverage(hovered, tuning);
+            DrawCandidateDelta(hovered);
+        }
+    }
+
+    /// <summary>
+    /// The causal consequences of putting the card in hand on the hovered socket.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// docs/design/14-encounter-timeline.md § Candidate placements show causal deltas: <i>"Before
+    /// drawing, show the requirement. After drawing, show the consequences of candidate actions. Do
+    /// not show the answer."</i> So this lists events - a lane's damage moving, a named unit's fate
+    /// turning, a run forming, what the card displaces.
+    /// </para>
+    /// <para>
+    /// <b>What it must never carry is one sortable number.</b> A single comparable figure lets a
+    /// player brute-force every socket until the smallest one appears, without ever understanding
+    /// why - and a combined verdict is no less a verdict for being computed per candidate (Hard
+    /// Invariant 2). <see cref="CandidateDelta"/> has no aggregate on it by construction; this only
+    /// has to avoid inventing one.
+    /// </para>
+    /// </remarks>
+    private void DrawCandidateDelta(SocketRef socket)
+    {
+        if (_controller.PendingRank is null
+            || _controller.Preview(_interaction.SelectedFamily, socket) is not { } delta)
+        {
+            return;
+        }
+
+        List<string> lines = [];
+
+        // Say what actually moved. A lane can change without its damage total changing - the same
+        // leak arriving later is a real consequence and a genuinely useful one - and printing
+        // "takes 11 → 11" over it reads as a candidate that does nothing.
+        foreach (LaneDelta lane in delta.Lanes.Where(l => !l.IsUnchanged))
+        {
+            if (lane.PredictedDamageBefore != lane.PredictedDamageAfter)
+            {
+                lines.Add($"Lane {lane.LaneIndex} takes {lane.PredictedDamageBefore} → {lane.PredictedDamageAfter}");
+            }
+
+            if (!Nullable.Equals(lane.FirstLeakTimeBefore, lane.FirstLeakTimeAfter))
+            {
+                lines.Add($"Lane {lane.LaneIndex} first leak "
+                    + $"{LeakTime(lane.FirstLeakTimeBefore)} → {LeakTime(lane.FirstLeakTimeAfter)}");
+            }
+        }
+
+        foreach (UnitFateChange change in delta.FateChanges.Take(2))
+        {
+            lines.Add($"{change.DisplayName}: {(change.LeaksBefore ? "through → stopped" : "stopped → through")}");
+        }
+
+        if (!delta.Runs.IsUnchanged)
+        {
+            lines.Add($"run {delta.Runs.LinkedTowersBefore} → {delta.Runs.LinkedTowersAfter} linked");
+        }
+
+        if (delta.Displaces is { } displaced)
+        {
+            lines.Add($"replaces {RankGlyph(displaced.Card)} ({displaced.ShotDamage:0.0}/shot)");
+        }
+
+        if (lines.Count == 0)
+        {
+            lines.Add("no change to the revealed force");
+        }
+
+        DrawCallout(socket, lines);
+    }
+
+    private static string LeakTime(double? seconds) => seconds is { } value ? $"{value:0.0}s" : "never";
+
+    /// <summary>
+    /// A small block of text beside a socket, kept inside the board.
+    /// </summary>
+    /// <remarks>
+    /// Placed to the right of the socket unless that would run off the board, in which case it flips
+    /// to the left. Without the flip the rear sockets' callouts - the ones a player checks last -
+    /// would be the ones drawn off screen.
+    /// </remarks>
+    private void DrawCallout(SocketRef socket, IReadOnlyList<string> lines)
+    {
+        const float PadX = 7f;
+        const float PadY = 6f;
+        const int Size = 10;
+        const float LineHeight = 13f;
+
+        if (LabelFont is null)
+        {
+            return;
+        }
+
+        float width = lines.Max(line => LabelFont.GetStringSize(line, HorizontalAlignment.Left, -1f, Size).X)
+            + (PadX * 2f);
+        float height = (lines.Count * LineHeight) + (PadY * 2f);
+
+        Rect2 area = Area;
+        Vector2 centre = SocketCentre(socket);
+        float x = centre.X + SocketHalf + 10f;
+
+        if (x + width > area.Position.X + area.Size.X)
+        {
+            x = centre.X - SocketHalf - 10f - width;
+        }
+
+        float y = Mathf.Clamp(
+            centre.Y - (height / 2f), area.Position.Y + 2f, area.Position.Y + area.Size.Y - height - 2f);
+
+        var box = new Rect2(x, y, width, height);
+
+        DrawRect(box, Palette.SurfaceRaised);
+        DrawRect(box, Palette.SurfaceEdge, filled: false, width: 1f);
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            Text(lines[i], new Vector2(x + PadX, y + PadY + ((i + 1) * LineHeight) - 3f),
+                Palette.Text, Size, LabelFont);
         }
     }
 

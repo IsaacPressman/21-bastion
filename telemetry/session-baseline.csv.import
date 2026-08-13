@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://ffkgq5xw5ajh"
+
+[deps]
+
+files=["res://telemetry/session-baseline. reduced from telemetry/sessions/*.jsonl..translation"]
+
+source_file="res://telemetry/session-baseline.csv"
+dest_files=["res://telemetry/session-baseline. reduced from telemetry/sessions/*.jsonl..translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

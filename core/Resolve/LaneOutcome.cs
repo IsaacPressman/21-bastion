@@ -26,6 +26,18 @@ public sealed record LeakedUnit
 
     /// <summary>Health it arrived with, as a fraction of its maximum. 1.0 means it was never touched.</summary>
     public required double RemainingHealthFraction { get; init; }
+
+    /// <summary>
+    /// When it reached the end, in seconds.
+    /// </summary>
+    /// <remarks>
+    /// The lane's <b>first leak time</b> is the earliest of these, and it is one of the exact
+    /// committed-state statistics the encounter is required to state
+    /// (docs/design/14-encounter-timeline.md § Exact consequences for the committed state). It comes
+    /// from the same tick the <see cref="LeakEvent"/> is stamped with, so the readout and the
+    /// timeline cannot disagree about when a lane breaks.
+    /// </remarks>
+    public required double LeakTime { get; init; }
 }
 
 /// <summary>

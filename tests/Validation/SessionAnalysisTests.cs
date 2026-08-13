@@ -226,6 +226,68 @@ public sealed class SessionAnalysisTests
     /// against the <b>on-disk format</b>. A shared type would keep passing if both sides changed
     /// together, which is the one thing that must not happen to logs already written.
     /// </remarks>
+    [Fact]
+    public void Candidate_inspection_is_measured_over_placement_states_only()
+    {
+        // The candidate preview serves the placement decision. Pooling hit/stand and lock states in
+        // would divide the number being watched by however many other states a session happened to
+        // produce, which is exactly how a signal gets buried.
+        string[] lines =
+        [
+            Line(Phase: "AwaitingPlacement", Choice: "place", Occupied: 2, Inspected: 4, Revisits: 2),
+            Line(Phase: "DrawDecision", Choice: "stand", Occupied: 3, Inspected: 0),
+            Line(Phase: "AdjustmentWindow", Choice: "lock", Occupied: 3, Inspected: 0),
+        ];
+
+        SessionMetrics metrics = SessionAnalysis.Reduce("synthetic", lines);
+
+        Assert.Equal([4.0], metrics.CandidateCombinationsHovered);
+        Assert.Equal([2.0], metrics.CandidateRevisits);
+        Assert.Single(metrics.PlacementMilliseconds);
+    }
+
+    [Fact]
+    public void Sweeping_nearly_the_whole_candidate_space_is_flagged_as_a_search()
+    {
+        // The oracle measurement. Seven sockets and two families is fourteen combinations; inspecting
+        // eleven of them is a player searching rather than judging, and the pre-committed response is
+        // to reduce sortable outputs - not to hide information, and not to add a mechanic.
+        string[] lines =
+        [
+            Line(Phase: "AwaitingPlacement", Choice: "place", Occupied: 2, Inspected: 11),
+            Line(Phase: "AwaitingPlacement", Choice: "place", Occupied: 3, Inspected: 3),
+        ];
+
+        SessionMetrics metrics = SessionAnalysis.Reduce("synthetic", lines);
+
+        Assert.Equal(1, metrics.ExhaustiveSearchStates);
+        Assert.Equal(0.5, ArmMetrics.Pool("C", [metrics]).ExhaustiveSearchFraction);
+    }
+
+    [Fact]
+    public void A_log_written_before_the_hover_counts_existed_still_reduces()
+    {
+        // StateRecord and the log entry are a schema, and Milestone 5 sessions still answer the
+        // March-arm question (docs/ROADMAP.md § Milestone 9). A field added later must read as absent
+        // rather than make the whole line unreadable.
+        string[] lines =
+        [
+            "{\"Sequence\":0,\"OfferedAtUtc\":\"2026-08-10T00:00:00Z\",\"State\":{" +
+            "\"Arm\":\"C\",\"Phase\":\"DrawDecision\"," +
+            "\"Hand\":{\"Cards\":[],\"Total\":17,\"IsSoft\":false,\"AcesHigh\":0,\"IsBust\":false,\"FormationMultiplier\":1.0}," +
+            "\"Pile\":[],\"March\":{\"Entry\":0,\"NextStepCost\":1.5,\"CardCount\":2}," +
+            "\"Sockets\":[],\"Lanes\":[],\"LaneReading\":\"none\"," +
+            "\"Dealer\":{\"Upcard\":\"K\",\"UpcardUnit\":\"siege_engine\",\"VanguardLane\":0}," +
+            "\"PendingRanks\":[],\"MoveSpent\":false},\"Choice\":\"stand\"," +
+            "\"DecisionMilliseconds\":5000,\"Abandoned\":false}",
+        ];
+
+        SessionMetrics metrics = SessionAnalysis.Reduce("legacy", lines);
+
+        Assert.Equal(0, metrics.UnreadableLines);
+        Assert.Equal(1, metrics.States);
+    }
+
     private static string Line(
         string Phase,
         string? Choice,
@@ -233,7 +295,9 @@ public sealed class SessionAnalysisTests
         double RunBonus = 0.0,
         int CardCount = 2,
         string Rank = "9",
-        long DecisionMilliseconds = 5000)
+        long DecisionMilliseconds = 5000,
+        int Inspected = 0,
+        int Revisits = 0)
     {
         string sockets = string.Join(",", Enumerable.Range(0, 7).Select(i =>
         {
@@ -256,6 +320,8 @@ public sealed class SessionAnalysisTests
             $"\"Sockets\":[{sockets}],\"Lanes\":[],\"LaneReading\":\"none\"," +
             $"\"Dealer\":{{\"Upcard\":\"K\",\"UpcardUnit\":\"siege_engine\",\"VanguardLane\":0}}," +
             $"\"PendingRanks\":[],\"MoveSpent\":false}}{choice}," +
-            $"\"DecisionMilliseconds\":{DecisionMilliseconds},\"Abandoned\":false}}");
+            $"\"DecisionMilliseconds\":{DecisionMilliseconds},\"Abandoned\":false," +
+            $"\"CandidateSocketsHovered\":{Inspected},\"CandidateCombinationsHovered\":{Inspected}," +
+            $"\"CandidateRevisits\":{Revisits}}}");
     }
 }

@@ -1,14 +1,15 @@
 # Roadmap
 
-**Status: Milestone 5 complete.** The prototype is playable, instrumented, and ready to playtest: the phase
-state machine, the Dealer's draw-to-17, bust with the Overload strike, the one-move adjustment window, lane
-stakes, persistence with ×1.00 reversion, the full presentation layer, three selectable march arms, 17
-scripted battery cases, per-state JSONL logging, and the four regression procedures as one filtered suite.
-`design/example-wave.md` replays end to end (`tests/Wave/`). **Open Decision 2 is closed** — deep placement
-was measured, confirmed dominant, and remedied by making range vary with socket depth (below).
+**Status: Milestone 6 complete.** The encounter information pass is in: the fully known base wave with
+spawn timing, the encounter timeline as its own region under the board, exact per-lane committed-state
+statistics, counterfactual memory of the last card, the hidden card's destination lane, standing orders
+editable throughout, candidate deltas with no sortable scalar, and hover instrumentation. Everything
+Milestone 5 shipped still holds — three selectable arms, 17 scripted cases, JSONL logging, and the four
+regression procedures as one filtered suite. **Open Decision 2 remains closed** (below).
 
-**Next: Milestone 6, the encounter information pass** — the first stage of the Improved Encounters
-Handoff.
+**Next: Milestone 7, tactical depth** — breakpoint enemies, deterministic bunching, and the four tower
+forms. **Build them at the current 4.0 / 3.0 / 2.0 range and change nothing about geometry**; the
+geometry question is settled afterwards, in isolation.
 
 > ⚠ **The milestones after 5 were renumbered by the Improved Encounters Handoff.** Rank stacking was
 > Milestone 6; **it is now Milestone 9**, because the handoff moves it to the end of a seven-step sequence
@@ -173,8 +174,11 @@ a client of it.
 - ✅ Per-lane outputs: empty-lane damage, predicted damage, damage prevented, per-tower activity, cause of
   leakage
 - ✅ **Two forecast return types** — `VisibleThreat` and `FinalForecast` — sharing no base class, no
-  interface, and no conversion. Only the Final Forecast carries a timeline, so there is nothing on a
-  Visible Threat for playback to animate
+  interface, and no conversion. ⚠ **Amended at Milestone 6:** a Visible Threat now carries a
+  `RevealedTimeline`, because the encounter timeline has to be readable *during the draw*. The
+  asymmetry moved rather than disappeared — it is a **different type** from the Final Forecast's
+  `WaveTimeline`, and `TimelinePlayer` takes a `WaveTimeline` and nothing else, so a Visible Threat
+  is drawable and still unplayable
 - ✅ Deep-placement dominance measured (Open Decision 2 above)
 
 **Done when:** the resolver runs headless, produces identical output for identical input across runs, and
@@ -184,7 +188,10 @@ reproduces the engagement tables in `design/03-march-clock.md`. **Met.**
 
 1. There is **one simulation path**. The visual wave is a *presentation* of a resolver run, never a
    re-simulation.
-2. There are **two forecast types**, and one cannot be rendered where the other is expected.
+2. There are **two forecast types**, and one cannot be rendered where the other is expected. Since
+   Milestone 6 that is enforced at the *playback* boundary rather than by the absence of a timeline:
+   both carry a schedule, only one carries a `WaveTimeline`, and only a `WaveTimeline` can be
+   animated.
 
 **A third fell out of the build and is worth keeping.** The board and the army each carry the entry point,
 and the resolver **rejects a pair that disagrees**. Both are downstream of the same March Clock reading, so a
@@ -345,32 +352,57 @@ arm there is a clean crossover at 18:
   the simulation's stand-on-17 policy: face-heavy hands reach 17 in two cards and never hit again. Worth
   remembering before treating that column as a difficulty signal.
 
-### Milestone 6 — Encounter information and the timeline ⬜
+### Milestone 6 — Encounter information and the timeline ✅
 
 **The first and largest stage of the Improved Encounters Handoff**, and the one its diagnosis says matters
 most: *the problem is not insufficient decision count, it is that the player cannot form a concrete
 intention before drawing.* Everything here is an **information** change. No new mechanics.
 
-- **The base wave is fully known** before the opening hand — types, spawn order, timing, lane assignment,
-  breakpoint abilities, empty-lane damage (`design/09-information-and-ui.md` § Shown)
-- **The encounter timeline** — a deterministic time-and-path strip per lane carrying spawn timing, tower
-  engagement windows, March advancement, slow and bunching, Hold orders, breakpoints, and reinforcements
-  (`design/14-encounter-timeline.md`)
-- **Exact committed-state statistics** per lane: which enemy leaks, first leak time, damage required
-  before a breakpoint, damage currently delivered, attacks per tower
-- **Counterfactual deltas** after a card is committed — what that card changed, preserved long enough to
-  read
-- **The hidden card's destination lane is visible** from the start; its rank is not
-- **Standing orders editable throughout**, locking only at combat, and **visible on the timeline**
-- Candidate previews carry **causal deltas and no sortable scalar**; **hover counts instrumented** from the
-  first build, because that is how the oracle failure is detected rather than assumed absent
+- ✅ **The base wave is fully known** before the opening hand — types, counts, spawn order, timing, lane
+  assignment, and empty-lane damage, stated in arrival order (`game/presentation/BattlefieldPanel.cs`).
+  Breakpoint abilities wait on Milestone 7, which is where breakpoints exist
+- ✅ **The encounter timeline** — its own region under the board, `x = time`, one row per lane:
+  `core/Resolve/TimelineStrip.cs` and `game/presentation/TimelineView.cs`. Enemy groups as scheduled
+  markers, tower firing bands with a tick per shot, slow spans, Hold markers, the located hidden card,
+  and a ghost row for the next march step
+- ✅ **Exact committed-state statistics** per lane — `core/Resolve/LaneConsequence.cs`: which enemy gets
+  through, first leak time, armor-effective damage required and delivered, the shortfall, attacks per
+  tower. The shortfall is anchored on the leaking unit; it moves onto a breakpoint at Milestone 7
+- ✅ **Counterfactual deltas** after a card is committed — `game/presentation/CounterfactualPanel.cs`,
+  built from the same `CandidateDelta` the hover shows, so the memory of what a card did cannot
+  disagree with what it did
+- ✅ **The hidden card's destination lane is visible** from the start; its rank is not
+- ✅ **Standing orders editable throughout**, locking only at combat, and named on the timeline row they
+  change
+- ✅ Candidate previews carry **causal deltas and no sortable scalar** — `core/Resolve/CandidateDelta.cs`,
+  whose property list is pinned by a test; **hover counts instrumented**, with the exhaustive-search
+  flag reduced in `SessionAnalysis`
 
 **Done when:** a player can state the battlefield problem they are trying to solve before each Hit
 decision, and the March step reads as *"this cannon loses two shots"* rather than *"entry moves to 4.0."*
+**Built; the player half is a playtest question, not a build one.**
 
 > **This milestone is where the encounter thesis is won or lost.** Its failure signal —
 > *the player still cannot say why they want another card* — carries the instruction **do not add more
 > mechanics.** If Milestone 6 does not land, Milestones 7 and 8 will not rescue it.
+
+#### Three results worth carrying forward
+
+1. **A march step redistributes attacks; it does not only subtract them.** Measured on the worked
+   example: the forward tower drops 12 shots to 10 while the **rear tower rises 2 to 4**, because the
+   forward tower now kills less and leaves the rear one more to shoot at. Engagement *window* is
+   monotonic in entry — that is closed-form geometry — but **per-tower attack count is not.** The
+   timeline therefore states the step as a change, never as a loss; a ghost band labelled "attacks
+   lost" over a tower that gained two would be false on the surface the design leans on hardest.
+   `tests/Wave/NextStepThreatTests.cs` pins it.
+2. **`CombinedBoard` was silently ignoring its entry argument** whenever nothing was persisted, and
+   returning the board at the draft's own entry. Harmless until Milestone 6, because every caller
+   asked for the entry it already had; the first caller that asked for a *different* one tripped the
+   resolver's board-versus-army guard immediately. **That guard is the reason this was a one-line fix
+   rather than a wrong forecast.**
+3. **Hard Invariant 4 was refined, not broken.** "Only the Final Forecast carries a timeline" was the
+   *implementation* of "a Visible Threat must not be renderable where a Final Forecast is expected".
+   The rule survives; the mechanism moved to the playback boundary. See § Known Discrepancies 17.
 
 ### Milestone 7 — Tactical depth ⬜
 

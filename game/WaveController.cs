@@ -41,6 +41,13 @@ public partial class WaveController : Node
     private BoardState? _board;
     private FinalForecast? _forecast;
     private VisibleThreat? _visibleThreat;
+    private VisibleThreat? _nextStepThreat;
+    private bool _nextStepRead;
+    private TimelineStrip? _strip;
+    private TimelineStrip? _ghostStrip;
+    private IReadOnlyList<LaneConsequence>? _consequences;
+    private (Family Family, SocketRef Socket)? _previewKey;
+    private CandidateDelta? _preview;
 
     [Signal]
     public delegate void StateChangedEventHandler();
@@ -90,8 +97,88 @@ public partial class WaveController : Node
     /// </summary>
     public FinalForecast Forecast => _forecast ??= Session.Forecast();
 
-    /// <summary>The Visible Threat. Only legal at the draw decision, for the same reason.</summary>
+    /// <summary>The Visible Threat. Legal before the Dealer resolves, for the same reason.</summary>
     public VisibleThreat VisibleThreat => _visibleThreat ??= Session.VisibleThreatNow();
+
+    /// <summary>
+    /// The same revealed-force reading one march step later, or null when the step is free.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The cost of a Hit, which the timeline draws as attacks moving rather than as a change in the
+    /// entry number. Cached behind a flag rather than a null check, because null is a real answer
+    /// here - past the entry clamp a further card costs nothing - and re-resolving on every redraw
+    /// to rediscover that would be a full resolver run per frame.
+    /// </para>
+    /// <para>
+    /// Null once the Dealer has resolved as well. There is no next card to price then, and the
+    /// session says so by refusing: the phase is checked here rather than the exception caught,
+    /// because a view asking "what would another card cost" after the draw is over is asking a
+    /// question with no answer, not hitting an error.
+    /// </para>
+    /// </remarks>
+    public VisibleThreat? NextStepThreat
+    {
+        get
+        {
+            if (!_nextStepRead)
+            {
+                _nextStepThreat = ShowsCombatContract ? null : Session.NextStepThreat();
+                _nextStepRead = true;
+            }
+
+            return _nextStepThreat;
+        }
+    }
+
+    /// <summary>
+    /// Whether the current reading is the combat contract rather than the revealed force.
+    /// </summary>
+    /// <remarks>
+    /// Views ask this to label what they are showing. It is a phase question, not a forecast one -
+    /// the two forecasts are separate types precisely so nothing has to inspect a value to find out
+    /// which it holds (docs/design/09-information-and-ui.md § Two forecasts must never share a
+    /// surface).
+    /// </remarks>
+    public bool ShowsCombatContract => Session.DealerCards is not null;
+
+    /// <summary>
+    /// The encounter timeline's drawing model for whichever reading this phase offers.
+    /// </summary>
+    /// <remarks>
+    /// The revealed force's schedule during the draw, the recorded wave afterwards. Both are strips
+    /// over the same kind of recording, which is what lets the timeline stay one surface across the
+    /// phase change - while the underlying types stay distinct, so only the second can be played back.
+    /// </remarks>
+    public TimelineStrip Strip => _strip ??= ShowsCombatContract
+        ? TimelineStrip.From(Forecast.Timeline, Tuning)
+        : TimelineStrip.From(VisibleThreat.Schedule, Tuning);
+
+    /// <summary>
+    /// The same strip one march step later, or null when the step is free. The timeline's ghost row.
+    /// </summary>
+    /// <remarks>
+    /// Cached here rather than built per tower: the timeline draws a ghost under every band, and
+    /// rebuilding the strip for each one would walk the whole event list several times per redraw.
+    /// </remarks>
+    public TimelineStrip? GhostStrip
+    {
+        get
+        {
+            if (_ghostStrip is null && NextStepThreat is { } next)
+            {
+                _ghostStrip = TimelineStrip.From(next.Schedule, Tuning);
+            }
+
+            return _ghostStrip;
+        }
+    }
+
+    /// <summary>
+    /// Per-lane exact statistics for the current reading: what leaks, when, and what is missing.
+    /// </summary>
+    public IReadOnlyList<LaneConsequence> Consequences => _consequences ??= LaneConsequence.ForAll(
+        ShowsCombatContract ? Forecast.Lanes : VisibleThreat.Lanes, Tuning, Threshold);
 
     /// <summary>Wires the controller to its tuning and opens the first wave.</summary>
     public void Configure(TuningData tuning, EncounterTuning encounter, int seed)
@@ -125,14 +212,61 @@ public partial class WaveController : Node
         SetSession(fixture.Open(tuning));
     }
 
+    /// <summary>
+    /// What committing the pending card here would change, or null if it is not a legal candidate.
+    /// </summary>
+    /// <remarks>
+    /// Memoised on the last socket and family asked for, because the board asks on every redraw and
+    /// a candidate preview is a pair of full resolver runs. One entry is enough: the pointer is only
+    /// ever on one socket.
+    /// </remarks>
+    public CandidateDelta? Preview(Family family, SocketRef socket)
+    {
+        if (_previewKey is { } key && key.Family == family && key.Socket == socket)
+        {
+            return _preview;
+        }
+
+        _previewKey = (family, socket);
+        _preview = Session.PreviewPlacement(family, socket);
+
+        return _preview;
+    }
+
     /// <summary>The rank waiting to be placed, or null when none is pending.</summary>
     public Rank? PendingRank =>
         Session.Phase == WavePhase.AwaitingPlacement && Session.PendingRanks.Count > 0
             ? Session.PendingRanks[0]
             : null;
 
-    public void Place(Family family, SocketRef socket) =>
+    /// <summary>
+    /// What the last committed card changed, preserved until the next commitment.
+    /// </summary>
+    /// <remarks>
+    /// <b>Counterfactual memory</b> (docs/design/14-encounter-timeline.md): "after a card is
+    /// committed, the previous state is preserved long enough to show what the card changed."
+    /// Players learn causality from deltas rather than from absolute levels, and this is what lets
+    /// one answer <i>"what did that card buy you?"</i> - which is a success criterion, not a nicety.
+    /// </remarks>
+    public CandidateDelta? LastCommit { get; private set; }
+
+    public void Place(Family family, SocketRef socket)
+    {
+        // Read the delta before applying, against the session that is about to be replaced. It is
+        // the same computation the hover preview already performs, and taking it from the real
+        // transition means the memory of what a card did cannot disagree with what it did.
+        CandidateDelta? committed = Session.PreviewPlacement(family, socket);
+
+        WaveSession before = Session;
         Apply(s => s.Place(family, socket), $"place {family} at {socket}");
+
+        // Only if it actually landed: a refused placement changed nothing, so it must not overwrite
+        // the memory of the card that did.
+        if (!ReferenceEquals(Session, before))
+        {
+            LastCommit = committed;
+        }
+    }
 
     public void Hit() => Apply(s => s.Hit(), "hit");
 
@@ -161,6 +295,10 @@ public partial class WaveController : Node
     {
         int nextWave = Session.NextWaveNumber;
         (IReadOnlyList<TowerState> carried, Shoe shoe) = Session.Settle();
+
+        // The memory belongs to the wave that made it. Carrying it across the boundary would show a
+        // player what a card did to a wave that has already resolved.
+        LastCommit = null;
 
         SetSession(WaveSession.Begin(Tuning, Encounter, shoe, carried, nextWave));
     }
@@ -199,6 +337,13 @@ public partial class WaveController : Node
         _board = null;
         _forecast = null;
         _visibleThreat = null;
+        _nextStepThreat = null;
+        _nextStepRead = false;
+        _strip = null;
+        _ghostStrip = null;
+        _consequences = null;
+        _previewKey = null;
+        _preview = null;
 
         EmitSignal(SignalName.StateChanged);
     }

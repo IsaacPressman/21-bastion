@@ -19,9 +19,15 @@ namespace Bastion.Core.Resolve;
 /// it changing mid-example.
 /// </para>
 /// <para>
-/// Note what is absent: there is no timeline. A Visible Threat describes a force, not a wave that
-/// will run, so there is nothing for combat playback to animate - which means a Visible Threat
-/// cannot be rendered in a slot expecting a Final Forecast even by accident.
+/// Note what is present and what it is <i>not</i>. This carries a <see cref="RevealedTimeline"/>,
+/// because the encounter timeline has to be readable during the draw - "if you draw again, this
+/// cannon loses two shots" is the entire March decision and cannot be shown after the Dealer has
+/// resolved (docs/design/14-encounter-timeline.md, Milestone 6). It is emphatically <b>not</b> a
+/// <see cref="WaveTimeline"/>: different type, no base class, no interface, no conversion. Combat
+/// playback takes a <see cref="WaveTimeline"/> and therefore cannot animate a Visible Threat, so a
+/// Visible Threat still cannot be rendered in a slot expecting a Final Forecast even by accident.
+/// The asymmetry moved from "one has a timeline" to "one has a timeline playback will accept", and
+/// both are enforced by the type system rather than by convention.
 /// </para>
 /// <para>
 /// The interface must label this plainly as revealed-force-only. Players who read it as a promise
@@ -32,11 +38,20 @@ public sealed record VisibleThreat
 {
     public required IReadOnlyList<LaneOutcome> Lanes { get; init; }
 
+    /// <summary>
+    /// What the revealed force is scheduled to do. Drawable, never playable.
+    /// </summary>
+    /// <remarks>
+    /// Read by the encounter timeline during the draw. See <see cref="RevealedTimeline"/> for why it
+    /// is a separate type from the Final Forecast's <see cref="WaveTimeline"/>.
+    /// </remarks>
+    public required RevealedTimeline Schedule { get; init; }
+
     /// <summary>Structural equality. See <see cref="LaneOutcome.Equals(LaneOutcome?)"/> for why.</summary>
     public bool Equals(VisibleThreat? other) =>
-        other is not null && Lanes.SequenceEqual(other.Lanes);
+        other is not null && Schedule == other.Schedule && Lanes.SequenceEqual(other.Lanes);
 
-    public override int GetHashCode() => Lanes.Count.GetHashCode();
+    public override int GetHashCode() => HashCode.Combine(Schedule, Lanes.Count);
 
     /// <summary>The lane carrying the highest predicted damage; ties toward the Bastion stake.</summary>
     /// <remarks>

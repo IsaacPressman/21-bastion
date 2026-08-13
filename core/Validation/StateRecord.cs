@@ -154,6 +154,14 @@ public sealed record LaneRecord
 
     /// <summary>The one permitted piece of interpretation, on a plain threshold.</summary>
     public required bool IsOpen { get; init; }
+
+    /// <summary>When this lane first breaks, or null when nothing gets through.</summary>
+    /// <remarks>
+    /// One of the exact committed-state statistics the encounter now states
+    /// (docs/design/14-encounter-timeline.md). Logged because "the choice made" is only
+    /// interpretable against what the player was actually shown, and this is on screen.
+    /// </remarks>
+    public double? FirstLeakTime { get; init; }
 }
 
 public sealed record DealerRecord
@@ -165,6 +173,23 @@ public sealed record DealerRecord
     public required string UpcardUnit { get; init; }
 
     public required int VanguardLane { get; init; }
+
+    /// <summary>
+    /// The lane the hidden card will enter. Its rank is not logged, because it is not shown.
+    /// </summary>
+    /// <remarks>
+    /// Baseline information from Milestone 6 (docs/design/06-dealer-and-enemies.md § The hidden
+    /// card's lane is visible from the start). It is here so that a hedging placement - the junction,
+    /// or a tower on that lane - can be read against the uncertainty the player was actually given.
+    /// </remarks>
+    /// <remarks>
+    /// <b>Optional, not required, and that is deliberate.</b> This type is a log schema: sessions
+    /// recorded before Milestone 6 do not carry the field, and marking it <c>required</c> would make
+    /// every one of them fail to deserialize. The Milestone 5 logs still answer the March-arm
+    /// question (docs/ROADMAP.md § Milestone 9), so they have to stay readable. Null means "recorded
+    /// before the hidden card's lane was shown", never "no lane".
+    /// </remarks>
+    public int? HiddenCardLane { get; init; }
 
     /// <summary>The Dealer's full hand once it has resolved, or null before that.</summary>
     public IReadOnlyList<string>? Cards { get; init; }
